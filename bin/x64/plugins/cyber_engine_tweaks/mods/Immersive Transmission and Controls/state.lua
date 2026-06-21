@@ -19,6 +19,12 @@ local state = {
     isAcceleratePressed = false,
     isDeceleratePressed = false,
     isFullThrottlePressed = false,
+    isCETHotkeyBrakePressed = false,
+    isModDisabled = false,
+    accelerateVal = 0.0,
+    decelerateVal = 0.0,
+    isHandbrakeToggled = false,
+    speedLimiterForce = 0.0,
     lastSentHUD = {
         visible = -1,
         mode = -1,
@@ -29,7 +35,9 @@ local state = {
         brake = -1,
         posX = -1,
         posY = -1,
-        cc = -1
+        cc = -1,
+        engine = -1,
+        mounted = -1
     }
 }
 return state

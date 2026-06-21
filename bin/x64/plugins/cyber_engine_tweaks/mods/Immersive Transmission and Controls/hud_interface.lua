@@ -1,6 +1,7 @@
 local state = require("state")
 local settings = require("settings")
 local logger = require("logger")
+local vehicleManager = require("vehicle_manager")
 
 local function setHUDFact(name, value)
     pcall(function()
@@ -11,7 +12,13 @@ end
 local function updateHUDState()
     local showHUD = settings.showHUD and state.isMounted and not state.isOverlayOpen
     local showHUDVal = showHUD and 1 or 0
+    local mountedVal = state.isMounted and 1 or 0
     local ccVal = settings.cruiseControlEnabled and 1 or 0
+    local isEngineOn = false
+    if state.isMounted and state.activeVehicle then
+        isEngineOn = vehicleManager.isEngineOn() and not state.isEngineStalled
+    end
+    local engineVal = isEngineOn and 1 or 0
     local modeVal = 0
     if settings.transmissionMode == "Manual" then
         modeVal = 1
@@ -49,8 +56,8 @@ local function updateHUDState()
     end
     local diffLocked = not GameOptions.GetBool("Vehicle", "UseDifferential")
     local diffLockedVal = diffLocked and 1 or 0
-    local isHandbraking = false
-    if state.activeVehicleBB then
+    local isHandbraking = state.isHandbrakeToggled or false
+    if not isHandbraking and state.activeVehicleBB then
         isHandbraking = state.activeVehicleBB:GetInt(GetAllBlackboardDefs().Vehicle.IsHandbraking) == 1
     end
     local handbrakeVal = isHandbraking and 1 or 0
@@ -67,7 +74,9 @@ local function updateHUDState()
        footBrakeVal ~= state.lastSentHUD.brake or
        posXVal ~= state.lastSentHUD.posX or
        posYVal ~= state.lastSentHUD.posY or
-       ccVal ~= state.lastSentHUD.cc then
+       ccVal ~= state.lastSentHUD.cc or
+       engineVal ~= state.lastSentHUD.engine or
+       mountedVal ~= state.lastSentHUD.mounted then
         state.lastSentHUD.visible = showHUDVal
         state.lastSentHUD.mode = modeVal
         state.lastSentHUD.gear = gearVal
@@ -78,7 +87,10 @@ local function updateHUDState()
         state.lastSentHUD.posX = posXVal
         state.lastSentHUD.posY = posYVal
         state.lastSentHUD.cc = ccVal
+        state.lastSentHUD.engine = engineVal
+        state.lastSentHUD.mounted = mountedVal
         setHUDFact("itc_hud_visible", showHUDVal)
+        setHUDFact("itc_hud_mounted", mountedVal)
         setHUDFact("itc_hud_mode", modeVal)
         setHUDFact("itc_hud_gear", gearVal)
         setHUDFact("itc_hud_diff", diffLockedVal)
@@ -88,8 +100,20 @@ local function updateHUDState()
         setHUDFact("itc_hud_pos_x", posXVal)
         setHUDFact("itc_hud_pos_y", posYVal)
         setHUDFact("itc_hud_cc", ccVal)
-        logger.logDebug(string.format("HUD Fact Update: Vis=%d, Mode=%d, Gear=%d, Diff=%d, PB=%d, Clutch=%d, Brake=%d, CC=%d, X=%d, Y=%d", 
-            showHUDVal, modeVal, gearVal, diffLockedVal, handbrakeVal, clutchVal, footBrakeVal, ccVal, posXVal, posYVal))
+        setHUDFact("itc_hud_engine", engineVal)
+
+        local uiSys = Game.GetUISystem()
+        if uiSys then
+            local itcHUD = uiSys.itcHUD
+            if itcHUD then
+                pcall(function()
+                    itcHUD:Refresh()
+                end)
+            end
+        end
+
+        logger.logDebug(string.format("HUD Fact Update: Vis=%d, Mounted=%d, Mode=%d, Gear=%d, Diff=%d, PB=%d, Clutch=%d, Brake=%d, CC=%d, Engine=%d, X=%d, Y=%d", 
+            showHUDVal, mountedVal, modeVal, gearVal, diffLockedVal, handbrakeVal, clutchVal, footBrakeVal, ccVal, engineVal, posXVal, posYVal))
     end
 end
 

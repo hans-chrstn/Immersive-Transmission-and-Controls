@@ -58,10 +58,13 @@ registerForEvent("onInit", function()
             state.activeVehicleBB = nil
             state.isManualOverride = false
             state.vehicleGears = {}
+            state.isHandbrakeToggled = false
             physicsTransmission.setGearBlock(false)
             hudInterface.setHUDFact("itc_hud_visible", 0)
             hudInterface.setHUDFact("itc_hud_gear", 1)
             hudInterface.setHUDFact("itc_hud_mode", 0)
+            hudInterface.setHUDFact("itc_hud_mounted", 0)
+            hudInterface.setHUDFact("itc_hud_engine", 0)
             logger.logDebug("[0-Engine] Vehicle unmounted.")
         end)
     else
@@ -110,10 +113,13 @@ registerForEvent("onInit", function()
             state.activeVehicleBB = nil
             state.isManualOverride = false
             state.vehicleGears = {}
+            state.isHandbrakeToggled = false
             physicsTransmission.setGearBlock(false)
             hudInterface.setHUDFact("itc_hud_visible", 0)
             hudInterface.setHUDFact("itc_hud_gear", 1)
             hudInterface.setHUDFact("itc_hud_mode", 0)
+            hudInterface.setHUDFact("itc_hud_mounted", 0)
+            hudInterface.setHUDFact("itc_hud_engine", 0)
             local vehicle = vehicleManager.getActiveVehicle()
             if vehicle and vehicle:IsPlayerDriver() then
                 state.isMounted = true
@@ -290,6 +296,36 @@ registerInput("ITC_Clutch", "Manual Clutch (Hold)", function(isDown)
     logger.logDebug("Clutch key: " .. (state.isClutchPressed and "HELD" or "RELEASED"))
 end)
 
+registerInput("ITC_FootBrake", "Foot Brake (Hold)", function(isDown)
+    state.isCETHotkeyBrakePressed = isDown
+    state.isDeceleratePressed = isDown
+    state.decelerateVal = isDown and 1.0 or 0.0
+    hudInterface.updateHUDState()
+    logger.logDebug("Foot Brake hotkey: " .. (state.isCETHotkeyBrakePressed and "HELD" or "RELEASED"))
+end)
+
+registerInput("ITC_ToggleModActive", "Toggle ITC Mod Active (Enable/Disable)", function(isDown)
+    if isDown then
+        state.isModDisabled = not state.isModDisabled
+        if state.isModDisabled then
+            physicsTransmission.setGearBlock(false)
+            GameOptions.SetBool("Vehicle", "UseDifferential", true)
+            hudInterface.setHUDFact("itc_hud_visible", 0)
+            hudInterface.updateHUDState()
+            logger.logDebug("ITC Mod: DISABLED (Returned to Native Controls)")
+            GameObject.PlaySoundEvent(GetPlayer(), 'ui_menu_error')
+        else
+            if state.activeVehicle then
+                physicsTransmission.setGearBlock(true)
+                GameOptions.SetBool("Vehicle", "UseDifferential", settings.useDifferential)
+            end
+            hudInterface.updateHUDState()
+            logger.logDebug("ITC Mod: ENABLED")
+            GameObject.PlaySoundEvent(GetPlayer(), 'sq023_sc_10_press_button')
+        end
+    end
+end)
+
 registerInput("ITC_ToggleTransmission", "Toggle Transmission Mode", function(isDown)
     if isDown then
         if settings.transmissionMode == "Automatic" then
@@ -332,6 +368,14 @@ end)
 
 registerInput("ITC_ToggleDifferential", "Toggle Differential Lock (Drift/Grip)", function(isDown)
     if isDown then physicsTransmission.toggleDifferential() end
+end)
+
+registerInput("ITC_ToggleHandbrake", "Toggle Handbrake (Parking Brake)", function(isDown)
+    if isDown then
+        state.isHandbrakeToggled = not state.isHandbrakeToggled
+        GameObject.PlaySoundEvent(GetPlayer(), 'sq023_sc_10_press_button')
+        logger.logDebug("Handbrake Toggle: " .. (state.isHandbrakeToggled and "ON" or "OFF"))
+    end
 end)
 
 registerInput("ITC_Boost", "Full Throttle / Boost Modifier", function(isDown)

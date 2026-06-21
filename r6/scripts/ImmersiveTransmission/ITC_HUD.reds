@@ -1,172 +1,206 @@
 module ImmersiveTransmission.UI
 
-public class ITC_HUDTick extends DelayCallback {
-  private let hud: wref<ITC_HUD>;
 
-  public func Call() -> Void {
-    if IsDefined(this.hud) {
-      this.hud.__tickArmed = false;
-      this.hud.Refresh();
-      this.hud.ArmNextTick();
-    }
+
+public class ITC_HUDComponent extends inkComponent {
+  private let modeText: ref<inkText>;
+  private let gearText: ref<inkText>;
+  private let statusText: ref<inkText>;
+  private let testText: ref<inkText>;
+
+  protected cb func OnCreate() -> ref<inkWidget> {
+    let canvas = new inkCanvas();
+    canvas.SetName(n"ITC_HUD_Canvas");
+    canvas.SetSize(new Vector2(250.0, 130.0));
+    canvas.SetInteractive(false);
+
+    let modeTxt = new inkText();
+    modeTxt.SetName(n"ITC_HUD_Mode");
+    modeTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
+    modeTxt.SetFontStyle(n"Medium");
+    modeTxt.SetFontSize(14);
+    modeTxt.SetFitToContent(true);
+    modeTxt.SetLetterCase(textLetterCase.OriginalCase);
+    modeTxt.SetTranslation(new Vector2(15.0, 8.0));
+    modeTxt.Reparent(canvas);
+    this.modeText = modeTxt;
+
+    let gearTxt = new inkText();
+    gearTxt.SetName(n"ITC_HUD_Gear");
+    gearTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
+    gearTxt.SetFontStyle(n"Bold");
+    gearTxt.SetFontSize(42);
+    gearTxt.SetFitToContent(true);
+    gearTxt.SetLetterCase(textLetterCase.OriginalCase);
+    gearTxt.SetTranslation(new Vector2(15.0, 20.0));
+    gearTxt.Reparent(canvas);
+    this.gearText = gearTxt;
+
+    let statusTxt = new inkText();
+    statusTxt.SetName(n"ITC_HUD_Status");
+    statusTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
+    statusTxt.SetFontStyle(n"Regular");
+    statusTxt.SetFontSize(13);
+    statusTxt.SetFitToContent(true);
+    statusTxt.SetLetterCase(textLetterCase.OriginalCase);
+    statusTxt.SetTranslation(new Vector2(15.0, 75.0));
+    statusTxt.Reparent(canvas);
+    this.statusText = statusTxt;
+
+    let testTxt = new inkText();
+    testTxt.SetName(n"ITC_HUD_Test");
+    testTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
+    testTxt.SetFontStyle(n"Bold");
+    testTxt.SetFontSize(14);
+    testTxt.SetText("ITC HUD ACTIVE");
+    let greenColor: HDRColor; greenColor.Red = 0.0; greenColor.Green = 1.0; greenColor.Blue = 0.0; greenColor.Alpha = 1.0;
+    testTxt.SetTintColor(greenColor);
+    testTxt.SetTranslation(new Vector2(15.0, 98.0));
+    testTxt.Reparent(canvas);
+    this.testText = testTxt;
+
+    return canvas;
   }
 
-  public static func Create(h: ref<ITC_HUD>) -> ref<ITC_HUDTick> {
-    let t = new ITC_HUDTick();
-    t.hud = h;
-    return t;
+  public func Update(vis: Int32, mounted: Int32, mode: Int32, gear: Int32, diff: Int32, brake: Int32, clutch: Int32, footBrake: Int32, cc: Int32, engine: Int32, posX: Int32, posY: Int32) {
+    let canvas = this.GetRootWidget();
+    if !IsDefined(canvas) {
+      LogChannel(n"DEBUG", "ITC HUD: Update() - root canvas widget is null!");
+      return;
+    }
+
+    LogChannel(n"DEBUG", "ITC HUD: Update() - updating visibility: " + IntToString(vis));
+
+    canvas.SetVisible(vis == 1);
+    if vis != 1 { return; }
+
+    let fracX: Float = Cast<Float>(posX) / 100.0;
+    let fracY: Float = Cast<Float>(posY) / 100.0;
+    // Map to native 1920x1080 virtual window coordinate system
+    canvas.SetTranslation(new Vector2(1920.0 * fracX, 1080.0 * fracY));
+
+    let modeTxtStr: String = "AUTOMATIC";
+    let modeColor: HDRColor = this.GetColorBlue();
+    if mode == 1 {
+      modeTxtStr = "MANUAL";
+      modeColor = this.GetColorYellow();
+    } else if mode == 2 {
+      modeTxtStr = "AUTO OVERRIDE";
+      modeColor = this.GetColorOrange();
+    }
+    if mounted != 1 {
+      modeTxtStr = "UNMOUNTED";
+    }
+    this.modeText.SetText(modeTxtStr);
+    this.modeText.SetTintColor(modeColor);
+
+    let gearStr: String = "";
+    let gearColor: HDRColor = this.GetColorYellow();
+    if gear == 0 {
+      gearStr = "R";
+      gearColor = this.GetColorRed();
+    } else if gear == 1 {
+      gearStr = "N";
+      gearColor = this.GetColorGrey();
+    } else if gear >= 200 {
+      gearStr = "M" + IntToString(gear - 200);
+    } else if gear >= 100 {
+      gearStr = "D" + IntToString(gear - 100);
+    } else {
+      gearStr = IntToString(gear - 1);
+    }
+    this.gearText.SetText(gearStr);
+    this.gearText.SetTintColor(gearColor);
+
+    let statusStr: String = "";
+    statusStr = statusStr + (engine == 1 ? "ENG: ON" : "ENG: OFF");
+    statusStr = statusStr + (brake == 1 ? " | HB" : "");
+    statusStr = statusStr + (cc == 1 ? " | CC" : "");
+    statusStr = statusStr + (diff == 1 ? " | DIFF" : "");
+    this.statusText.SetText(statusStr);
+
+    let testStr: String = "";
+    testStr = testStr + (clutch == 1 ? "CL: ON" : "CL: OFF");
+    testStr = testStr + (footBrake == 1 ? " | BRK: ON" : " | BRK: OFF");
+    this.testText.SetText(testStr);
+  }
+
+  private func GetColorBlue() -> HDRColor {
+    let c: HDRColor; c.Red = 0.35; c.Green = 0.75; c.Blue = 1.0; c.Alpha = 1.0;
+    return c;
+  }
+  private func GetColorYellow() -> HDRColor {
+    let c: HDRColor; c.Red = 1.0; c.Green = 0.85; c.Blue = 0.15; c.Alpha = 1.0;
+    return c;
+  }
+  private func GetColorOrange() -> HDRColor {
+    let c: HDRColor; c.Red = 1.0; c.Green = 0.55; c.Blue = 0.0; c.Alpha = 1.0;
+    return c;
+  }
+  private func GetColorRed() -> HDRColor {
+    let c: HDRColor; c.Red = 1.0; c.Green = 0.2; c.Blue = 0.2; c.Alpha = 1.0;
+    return c;
+  }
+  private func GetColorGrey() -> HDRColor {
+    let c: HDRColor; c.Red = 0.6; c.Green = 0.6; c.Blue = 0.6; c.Alpha = 1.0;
+    return c;
   }
 }
 
 public class ITC_HUD extends IScriptable {
-
-  private let tick: ref<ITC_HUDTick>;
-  private let tickPeriod: Float = 0.1;
-  public let __tickArmed: Bool;
-
-  private let __built: Bool;
-
-  private let rootCanvas: ref<inkCanvas>;
-  private let backgroundCard: ref<inkRectangle>;
-  private let modeText: ref<inkText>;
-  private let gearText: ref<inkText>;
-  private let statusText: ref<inkText>;
-
-  private let __dirty: Bool = true;
-  private let lastMode: Int32;
-  private let lastGear: Int32;
-  private let lastDiff: Int32;
-  private let lastBrake: Int32;
-  private let lastVisible: Int32;
-  private let lastClutch: Int32;
-  private let lastFootBrake: Int32;
-  private let lastCC: Int32;
-
-  private func RootExists(vwin: ref<inkCompoundWidget>) -> Bool {
-    if !IsDefined(vwin) { return false; }
-    let canvas: ref<inkCanvas> = vwin.GetWidget(n"ITC_HUD_Canvas") as inkCanvas;
-    return IsDefined(canvas);
-  }
+  private let comp: ref<ITC_HUDComponent>;
 
   public func Ensure() -> Void {
     let inkSys: ref<inkSystem> = GameInstance.GetInkSystem();
     if !IsDefined(inkSys) {
-      this.ArmNextTick();
+      LogChannel(n"DEBUG", "ITC HUD: Ensure() - inkSystem is null");
       return;
     }
     let hudLayer = inkSys.GetLayer(n"inkHUDLayer");
     if !IsDefined(hudLayer) {
-      this.ArmNextTick();
+      LogChannel(n"DEBUG", "ITC HUD: Ensure() - inkHUDLayer is null");
       return;
     }
-    let vwin: ref<inkCompoundWidget> = hudLayer.GetVirtualWindow();
+    let vwin = hudLayer.GetVirtualWindow();
     if !IsDefined(vwin) {
-      this.ArmNextTick();
+      LogChannel(n"DEBUG", "ITC HUD: Ensure() - virtualWindow is null");
       return;
     }
 
-    if this.__built && !this.RootExists(vwin) {
-      this.__built = false;
-      this.__dirty = true;
-    }
-
-    if !this.__built {
-      let oldCanvas = vwin.GetWidget(n"ITC_HUD_Canvas");
-      if IsDefined(oldCanvas) {
-        vwin.RemoveChild(oldCanvas);
+    let existingCanvas = vwin.GetWidgetByPathName(n"ITC_HUD_Canvas");
+    if IsDefined(existingCanvas) {
+      LogChannel(n"DEBUG", "ITC HUD: Ensure() - Found existing canvas widget.");
+      this.comp = existingCanvas.GetController() as ITC_HUDComponent;
+      if !IsDefined(this.comp) {
+        LogChannel(n"DEBUG", "ITC HUD: Ensure() - Controller is null or not ITC_HUDComponent! Removing old widget.");
+        vwin.RemoveChild(existingCanvas);
+        existingCanvas = null;
+      } else {
+        LogChannel(n"DEBUG", "ITC HUD: Ensure() - Controller cast succeeded.");
       }
-
-      let canvas: ref<inkCanvas> = new inkCanvas();
-      canvas.SetName(n"ITC_HUD_Canvas");
-      canvas.SetSize(new Vector2(250.0, 150.0));
-      canvas.SetInteractive(false);
-      canvas.SetVisible(false);
-      canvas.Reparent(vwin);
-      this.rootCanvas = canvas;
-
-      let modeTxt: ref<inkText> = new inkText();
-      modeTxt.SetName(n"ITC_HUD_Mode");
-      modeTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
-      modeTxt.SetFontStyle(n"Medium");
-      modeTxt.SetFontSize(14);
-      modeTxt.SetStyle(r"base\\gameplay\\gui\\common\\main_colors.inkstyle");
-      modeTxt.SetFitToContent(true);
-      modeTxt.SetLetterCase(textLetterCase.OriginalCase);
-      modeTxt.SetTranslation(new Vector2(15.0, 8.0));
-      modeTxt.SetVisible(true);
-      modeTxt.SetOpacity(1.0);
-      modeTxt.Reparent(canvas);
-      this.modeText = modeTxt;
-
-      let gearTxt: ref<inkText> = new inkText();
-      gearTxt.SetName(n"ITC_HUD_Gear");
-      gearTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
-      gearTxt.SetFontStyle(n"Bold");
-      gearTxt.SetFontSize(42);
-      gearTxt.SetStyle(r"base\\gameplay\\gui\\common\\main_colors.inkstyle");
-      gearTxt.SetFitToContent(true);
-      gearTxt.SetLetterCase(textLetterCase.OriginalCase);
-      gearTxt.SetTranslation(new Vector2(15.0, 20.0));
-      gearTxt.SetVisible(true);
-      gearTxt.SetOpacity(1.0);
-      gearTxt.Reparent(canvas);
-      this.gearText = gearTxt;
-
-      let statusTxt: ref<inkText> = new inkText();
-      statusTxt.SetName(n"ITC_HUD_Status");
-      statusTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
-      statusTxt.SetFontStyle(n"Regular");
-      statusTxt.SetFontSize(13);
-      statusTxt.SetStyle(r"base\\gameplay\\gui\\common\\main_colors.inkstyle");
-      statusTxt.SetFitToContent(true);
-      statusTxt.SetLetterCase(textLetterCase.OriginalCase);
-      statusTxt.SetTranslation(new Vector2(15.0, 70.0));
-      statusTxt.SetVisible(true);
-      statusTxt.SetOpacity(1.0);
-      statusTxt.Reparent(canvas);
-      this.statusText = statusTxt;
-
-      this.__built = true;
     }
-
-    this.ArmNextTick();
-  }
-
-  public func ArmNextTick() -> Void {
-    if this.__tickArmed { return; }
-    if !IsDefined(this.tick) {
-      this.tick = ITC_HUDTick.Create(this);
+    if !IsDefined(existingCanvas) {
+      this.comp = new ITC_HUDComponent();
+      this.comp.Reparent(vwin);
+      LogChannel(n"DEBUG", "ITC HUD: Component successfully instantiated and parented to vwin.");
     }
-    this.__tickArmed = true;
-    GameInstance.GetDelaySystem(GetGameInstance()).DelayCallback(this.tick, this.tickPeriod, false);
   }
 
   public func Refresh() -> Void {
     this.Ensure();
-    if !this.__built { return; }
+    if !IsDefined(this.comp) {
+      LogChannel(n"DEBUG", "ITC HUD: Refresh() - comp is null, returning early");
+      return;
+    }
 
     let qs = GameInstance.GetQuestsSystem(GetGameInstance());
-    if !IsDefined(qs) { return; }
-
-    let posX: Int32 = qs.GetFact(n"itc_hud_pos_x");
-    let posY: Int32 = qs.GetFact(n"itc_hud_pos_y");
-    let fracX: Float = Cast<Float>(posX) / 100.0;
-    let fracY: Float = Cast<Float>(posY) / 100.0;
-
-    let inkSys: ref<inkSystem> = GameInstance.GetInkSystem();
-    if IsDefined(inkSys) {
-      let layer = inkSys.GetLayer(n"inkHUDLayer");
-      if IsDefined(layer) {
-        let size = layer.GetVirtualWindow().GetSize();
-        let screenWidth: Float = size.X;
-        let screenHeight: Float = size.Y;
-        if screenWidth <= 0.0 { screenWidth = 1920.0; }
-        if screenHeight <= 0.0 { screenHeight = 1080.0; }
-        this.rootCanvas.SetTranslation(new Vector2(screenWidth * fracX, screenHeight * fracY));
-      }
+    if !IsDefined(qs) {
+      LogChannel(n"DEBUG", "ITC HUD: Refresh() - QuestSystem is null, returning early");
+      return;
     }
 
     let vis: Int32 = qs.GetFact(n"itc_hud_visible");
+    let mounted: Int32 = qs.GetFact(n"itc_hud_mounted");
     let mode: Int32 = qs.GetFact(n"itc_hud_mode");
     let gear: Int32 = qs.GetFact(n"itc_hud_gear");
     let diff: Int32 = qs.GetFact(n"itc_hud_diff");
@@ -174,117 +208,16 @@ public class ITC_HUD extends IScriptable {
     let clutch: Int32 = qs.GetFact(n"itc_hud_clutch");
     let footBrake: Int32 = qs.GetFact(n"itc_hud_brake");
     let cc: Int32 = qs.GetFact(n"itc_hud_cc");
+    let engine: Int32 = qs.GetFact(n"itc_hud_engine");
+    let posX: Int32 = qs.GetFact(n"itc_hud_pos_x");
+    let posY: Int32 = qs.GetFact(n"itc_hud_pos_y");
 
-    if vis != 1 {
-      if IsDefined(this.rootCanvas) {
-        this.rootCanvas.SetVisible(false);
-      }
-      this.lastVisible = 0;
-      return;
-    }
+    if posX <= 0 { posX = 85; }
+    if posY <= 0 { posY = 82; }
 
-    if IsDefined(this.rootCanvas) {
-      this.rootCanvas.SetVisible(true);
-    }
+    LogChannel(n"DEBUG", "ITC HUD: Refresh() - calling Update with facts: vis=" + IntToString(vis) + " mounted=" + IntToString(mounted) + " mode=" + IntToString(mode) + " gear=" + IntToString(gear) + " engine=" + IntToString(engine));
 
-    if !this.__dirty && mode == this.lastMode && gear == this.lastGear && diff == this.lastDiff && brake == this.lastBrake && vis == this.lastVisible && clutch == this.lastClutch && footBrake == this.lastFootBrake && cc == this.lastCC {
-      return;
-    }
-    this.__dirty = false;
-    this.lastMode = mode;
-    this.lastGear = gear;
-    this.lastDiff = diff;
-    this.lastBrake = brake;
-    this.lastVisible = vis;
-    this.lastClutch = clutch;
-    this.lastFootBrake = footBrake;
-    this.lastCC = cc;
-
-    let modeTxtStr: String = "AUTOMATIC";
-    let modeColorName: CName = n"MainColors.Blue";
-    if mode == 1 {
-      modeTxtStr = "MANUAL";
-      modeColorName = n"MainColors.Yellow";
-    } else {
-      if mode == 2 {
-        modeTxtStr = "AUTO OVERRIDE";
-        modeColorName = n"MainColors.Orange";
-      }
-    }
-    if IsDefined(this.modeText) {
-      this.modeText.SetVisible(true);
-      this.modeText.SetOpacity(1.0);
-      this.modeText.SetText(modeTxtStr);
-      this.modeText.BindProperty(n"tintColor", modeColorName);
-    }
-
-    let gearStr: String = "";
-    let gearColorName: CName = n"MainColors.Yellow";
-
-    if gear == 0 {
-      gearStr = "R";
-      gearColorName = n"MainColors.Red";
-    } else {
-      if gear == 1 {
-        gearStr = "N";
-        gearColorName = n"MainColors.Grey";
-      } else {
-        if gear >= 200 {
-          gearStr = "M" + IntToString(gear - 200);
-        } else {
-          if gear >= 100 {
-            gearStr = "D" + IntToString(gear - 100);
-          } else {
-            gearStr = IntToString(gear - 1);
-          }
-        }
-      }
-    }
-
-    if IsDefined(this.gearText) {
-      this.gearText.SetVisible(true);
-      this.gearText.SetOpacity(1.0);
-      this.gearText.SetText(gearStr);
-      this.gearText.BindProperty(n"tintColor", gearColorName);
-    }
-
-    let statusStr: String = "";
-    if brake == 1 {
-      statusStr = statusStr + "[P] ";
-    } else {
-      statusStr = statusStr + "[ ] ";
-    }
-
-    if footBrake == 1 {
-      statusStr = statusStr + "[B] ";
-    } else {
-      statusStr = statusStr + "[ ] ";
-    }
-
-    if clutch == 1 {
-      statusStr = statusStr + "[C] ";
-    } else {
-      statusStr = statusStr + "[ ] ";
-    }
-
-    if cc == 1 {
-      statusStr = statusStr + "[CC] ";
-    } else {
-      statusStr = statusStr + "[  ] ";
-    }
-
-    if diff == 1 {
-      statusStr = statusStr + "LOCK";
-    } else {
-      statusStr = statusStr + "OPEN";
-    }
-
-    if IsDefined(this.statusText) {
-      this.statusText.SetVisible(true);
-      this.statusText.SetOpacity(1.0);
-      this.statusText.SetText(statusStr);
-      this.statusText.BindProperty(n"tintColor", n"MainColors.White");
-    }
+    this.comp.Update(vis, mounted, mode, gear, diff, brake, clutch, footBrake, cc, engine, posX, posY);
   }
 }
 
@@ -295,14 +228,14 @@ public let itcHUD: ref<ITC_HUD>;
 public final func PushGameContext(context: UIGameContext) -> Void {
   wrappedMethod(context);
   if !IsDefined(this.itcHUD) { this.itcHUD = new ITC_HUD(); }
-  this.itcHUD.Ensure();
+  this.itcHUD.Refresh();
 }
 
 @wrapMethod(UISystem)
 public final func PopGameContext(context: UIGameContext, opt invalidate: Bool) -> Void {
   wrappedMethod(context, invalidate);
   if !IsDefined(this.itcHUD) { this.itcHUD = new ITC_HUD(); }
-  this.itcHUD.Ensure();
+  this.itcHUD.Refresh();
 }
 
 @wrapMethod(PlayerPuppet)
@@ -311,7 +244,7 @@ protected cb func OnTakeControl(resolver: EntityResolveComponentsInterface) -> B
   let uiSys: ref<UISystem> = GameInstance.GetUISystem(GetGameInstance());
   if IsDefined(uiSys) {
     if !IsDefined(uiSys.itcHUD) { uiSys.itcHUD = new ITC_HUD(); }
-    uiSys.itcHUD.Ensure();
+    uiSys.itcHUD.Refresh();
   }
   return r;
 }

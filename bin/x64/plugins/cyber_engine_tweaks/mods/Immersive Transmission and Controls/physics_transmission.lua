@@ -5,8 +5,14 @@ local vehicleManager = require("vehicle_manager")
 local hudInterface = require("hud_interface")
 
 local function setGearBlock(block)
-    state.blockChangeGearState = block
-    GameOptions.SetBool("Vehicle", "BlockChangeGear", block)
+    if state.blockChangeGearState ~= block then
+        state.blockChangeGearState = block
+        GameOptions.SetBool("Vehicle", "BlockChangeGear", block)
+        local currentGear = state.activeVehicleBB and state.activeVehicleBB:GetInt(GetAllBlackboardDefs().Vehicle.GearValue) or -1
+        local currentSpeed = state.activeVehicle and math.sqrt(state.activeVehicle:GetLinearVelocity().x^2 + state.activeVehicle:GetLinearVelocity().y^2 + state.activeVehicle:GetLinearVelocity().z^2) or 0.0
+        logger.logDebug(string.format("setGearBlock changed: %s | ExpectedGear=%s | NativeGear=%d | Speed=%.1f km/h", 
+            tostring(block), tostring(state.currentGearState), currentGear, currentSpeed * 3.6))
+    end
 end
 
 local function toggleDifferential()
@@ -31,59 +37,23 @@ local function triggerShift(direction)
 end
 
 local function handleGearUp()
-    local vehicle = vehicleManager.getActiveVehicle()
-    if vehicle and vehicle:IsPlayerDriver() then
-        state.isMounted = true
-        if not state.activeVehicle or state.activeVehicle:GetEntityID().hash ~= vehicle:GetEntityID().hash then
-            state.activeVehicle = vehicle
-            state.activeVehicleBB = state.activeVehicle:GetBlackboard()
-            GameOptions.SetBool("Vehicle", "UseDifferential", settings.useDifferential)
-            state.isEngineStalled = false
-            vehicleManager.cacheVehicleGearData()
-        end
-    else
-        if state.isMounted or state.activeVehicle then
-            logger.logDebug("Active vehicle cleared (Player not driving).")
-        end
-        state.isMounted = false
-        state.activeVehicle = nil
-        state.activeVehicleBB = nil
-        hudInterface.updateHUDState()
-    end
-    if not state.activeVehicle or not state.activeVehicleBB then return end
+    if not state.isMounted or not state.activeVehicle or not state.activeVehicleBB then return end
     if settings.transmissionMode == "Manual" then
         if not state.isClutchPressed then
             logger.logDebug("Shift UP Blocked: Clutch is disengaged/not pressed!")
             GameObject.PlaySoundEvent(GetPlayer(), 'ui_menu_error')
             return
         end
-    end
-    if settings.transmissionMode == "Automatic" then
+        
         if state.currentGearState == "R" then
             state.currentGearState = "N"
-            logger.logDebug("Shifted to Neutral (N)")
-        elseif state.currentGearState == "N" then
-            state.currentGearState = "D"
-            state.targetGear = 1
-            state.isManualOverride = false
-            setGearBlock(false)
-            logger.logDebug("Shifted to Drive (D)")
-        elseif state.currentGearState == "D" then
-            state.isManualOverride = true
-            state.overrideTimer = 4.0
-            local currentGear = state.activeVehicleBB:GetInt(GetAllBlackboardDefs().Vehicle.GearValue)
-            state.targetGear = currentGear + 1
-            triggerShift("UP")
-            logger.logDebug("Manual Override: Gear Up to " .. state.targetGear)
-        end
-    else
-        if state.currentGearState == "R" then
-            state.currentGearState = "N"
+            state.targetGear = -1
+            GameObject.PlaySoundEvent(GetPlayer(), 'sq023_sc_10_press_button')
             logger.logDebug("Shifted to Neutral (N)")
         elseif state.currentGearState == "N" then
             state.currentGearState = "1"
             state.targetGear = 1
-            triggerShift("UP")
+            GameObject.PlaySoundEvent(GetPlayer(), 'sq023_sc_10_press_button')
             logger.logDebug("Shifted to 1st Gear")
         else
             local maxGears = #state.vehicleGears
@@ -92,88 +62,114 @@ local function handleGearUp()
             if currentSelected < maxGears then
                 state.targetGear = currentSelected + 1
                 state.currentGearState = tostring(state.targetGear)
-                triggerShift("UP")
+                GameObject.PlaySoundEvent(GetPlayer(), 'sq023_sc_10_press_button')
                 logger.logDebug("Gear Up to " .. state.targetGear)
+            end
+        end
+        hudInterface.updateHUDState()
+    else
+        if settings.transmissionMode == "Automatic" then
+            if state.currentGearState == "R" then
+                state.currentGearState = "N"
+                logger.logDebug("Shifted to Neutral (N)")
+            elseif state.currentGearState == "N" then
+                state.currentGearState = "D"
+                state.targetGear = 1
+                state.isManualOverride = false
+                setGearBlock(false)
+                logger.logDebug("Shifted to Drive (D)")
+            elseif state.currentGearState == "D" then
+                state.isManualOverride = true
+                state.overrideTimer = 4.0
+                local currentGear = state.activeVehicleBB:GetInt(GetAllBlackboardDefs().Vehicle.GearValue)
+                state.targetGear = currentGear + 1
+                triggerShift("UP")
+                logger.logDebug("Manual Override: Gear Up to " .. state.targetGear)
             end
         end
     end
 end
 
 local function handleGearDown()
-    local vehicle = vehicleManager.getActiveVehicle()
-    if vehicle and vehicle:IsPlayerDriver() then
-        state.isMounted = true
-        if not state.activeVehicle or state.activeVehicle:GetEntityID().hash ~= vehicle:GetEntityID().hash then
-            state.activeVehicle = vehicle
-            state.activeVehicleBB = state.activeVehicle:GetBlackboard()
-            GameOptions.SetBool("Vehicle", "UseDifferential", settings.useDifferential)
-            state.isEngineStalled = false
-            vehicleManager.cacheVehicleGearData()
-        end
-    else
-        if state.isMounted or state.activeVehicle then
-            logger.logDebug("Active vehicle cleared (Player not driving).")
-        end
-        state.isMounted = false
-        state.activeVehicle = nil
-        state.activeVehicleBB = nil
-        hudInterface.updateHUDState()
-    end
-    if not state.activeVehicle or not state.activeVehicleBB then return end
+    if not state.isMounted or not state.activeVehicle or not state.activeVehicleBB then return end
     if settings.transmissionMode == "Manual" then
         if not state.isClutchPressed then
             logger.logDebug("Shift DOWN Blocked: Clutch is disengaged/not pressed!")
             GameObject.PlaySoundEvent(GetPlayer(), 'ui_menu_error')
             return
         end
-    end
-    if settings.transmissionMode == "Automatic" then
-        if state.currentGearState == "D" then
-            if state.isManualOverride then
-                local currentGear = state.activeVehicleBB:GetInt(GetAllBlackboardDefs().Vehicle.GearValue)
-                if currentGear > 1 then
-                    state.targetGear = currentGear - 1
-                    triggerShift("DOWN")
-                    logger.logDebug("Manual Override: Gear Down to " .. state.targetGear)
-                else
-                    state.isManualOverride = false
-                    state.currentGearState = "N"
-                    logger.logDebug("Shifted to Neutral (N)")
-                end
-            else
-                state.currentGearState = "N"
-                logger.logDebug("Shifted to Neutral (N)")
-            end
-        elseif state.currentGearState == "N" then
-            state.currentGearState = "R"
-            state.targetGear = 0
-            triggerShift("DOWN")
-            logger.logDebug("Shifted to Reverse (R)")
-        end
-    else
+        
         if state.currentGearState == "R" then
             return
         elseif state.currentGearState == "N" then
+            local velocity = state.activeVehicle:GetLinearVelocity()
+            local currentSpeed = math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z)
+            if currentSpeed * 3.6 > 15.0 then
+                logger.logDebug(string.format("Reverse Lockout: Blocked shift to R at %.1f km/h", currentSpeed * 3.6))
+                GameObject.PlaySoundEvent(GetPlayer(), 'ui_menu_error')
+                return
+            end
             state.currentGearState = "R"
             state.targetGear = 0
-            triggerShift("DOWN")
+            GameObject.PlaySoundEvent(GetPlayer(), 'sq023_sc_10_press_button')
             logger.logDebug("Shifted to Reverse (R)")
         elseif state.currentGearState == "1" then
             state.currentGearState = "N"
+            state.targetGear = -1
+            GameObject.PlaySoundEvent(GetPlayer(), 'sq023_sc_10_press_button')
             logger.logDebug("Shifted to Neutral (N)")
         else
             local currentSelected = tonumber(state.currentGearState) or 1
             if currentSelected > 1 then
                 state.targetGear = currentSelected - 1
                 state.currentGearState = tostring(state.targetGear)
-                triggerShift("DOWN")
+                GameObject.PlaySoundEvent(GetPlayer(), 'sq023_sc_10_press_button')
                 logger.logDebug("Gear Down to " .. state.targetGear)
+            end
+        end
+        hudInterface.updateHUDState()
+    else
+        if settings.transmissionMode == "Automatic" then
+            if state.currentGearState == "D" then
+                if state.isManualOverride then
+                    local currentGear = state.activeVehicleBB:GetInt(GetAllBlackboardDefs().Vehicle.GearValue)
+                    if currentGear > 1 then
+                        state.targetGear = currentGear - 1
+                        triggerShift("DOWN")
+                        logger.logDebug("Manual Override: Gear Down to " .. state.targetGear)
+                    else
+                        state.isManualOverride = false
+                        state.currentGearState = "N"
+                        logger.logDebug("Shifted to Neutral (N)")
+                    end
+                else
+                    state.currentGearState = "N"
+                    logger.logDebug("Shifted to Neutral (N)")
+                end
+            elseif state.currentGearState == "N" then
+                local velocity = state.activeVehicle:GetLinearVelocity()
+                local currentSpeed = math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z)
+                if currentSpeed * 3.6 > 15.0 then
+                    logger.logDebug(string.format("Reverse Lockout: Blocked shift to R at %.1f km/h", currentSpeed * 3.6))
+                    GameObject.PlaySoundEvent(GetPlayer(), 'ui_menu_error')
+                    return
+                end
+                state.currentGearState = "R"
+                state.targetGear = 0
+                triggerShift("DOWN")
+                logger.logDebug("Shifted to Reverse (R)")
             end
         end
     end
 end
 
 local function updateTransmission(dt)
+    if state.isModDisabled then
+        setGearBlock(false)
+        hudInterface.updateHUDState()
+        return
+    end
+
     local vehicle = vehicleManager.getActiveVehicle()
     if vehicle and vehicle:IsPlayerDriver() then
         state.isMounted = true
@@ -197,6 +193,13 @@ local function updateTransmission(dt)
         hudInterface.updateHUDState()
         return
     end
+
+    if state.isCETHotkeyBrakePressed then
+        state.isDeceleratePressed = true
+        state.decelerateVal = 1.0
+        state.activeVehicle:ForceBrakesFor(dt)
+    end
+
     if #state.vehicleGears == 0 then
         vehicleManager.cacheVehicleGearData()
     end
@@ -204,7 +207,6 @@ local function updateTransmission(dt)
     local velocity = state.activeVehicle:GetLinearVelocity()
     local currentSpeed = math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y + velocity.z * velocity.z)
     local currentRPM = state.activeVehicleBB:GetFloat(GetAllBlackboardDefs().Vehicle.RPMValue)
-    local maxDecelForce = 6.0 * 9.81 * state.vehicleMass
 
     local isThrottlePressed = false
     if state.currentGearState == "R" then
@@ -247,10 +249,49 @@ local function updateTransmission(dt)
             end
             limitStr = string.format("%.1f km/h", lim * 3.6)
         end
-        logger.logDebug(string.format("Speed Monitor: Speed=%.1f km/h, GearState=%s, NativeGear=%d, ActiveGearIdx=%s, Limit=%s, Override=%s, Cruise=%s",
-            currentSpeed * 3.6, state.currentGearState, currentGear, tostring(activeGearIdx), limitStr, tostring(state.isManualOverride), tostring(settings.cruiseControlEnabled)))
+        logger.logDebug(string.format("Speed Monitor: Speed=%.1f km/h, GearState=%s, NativeGear=%d, ActiveGearIdx=%s, Limit=%s, Override=%s, Cruise=%s, Shifting=%s, BlockGear=%s, ClutchPressed=%s, LimiterForce=%.1f",
+            currentSpeed * 3.6, state.currentGearState, currentGear, tostring(activeGearIdx), limitStr, tostring(state.isManualOverride), tostring(settings.cruiseControlEnabled), tostring(state.isShifting), tostring(state.blockChangeGearState), tostring(state.isClutchPressed), state.speedLimiterForce or 0.0))
     end
-    if activeGearIdx then
+    if state.isHandbrakeToggled then
+        if currentSpeed < 2.0 then
+            state.activeVehicle:ForceBrakesFor(dt)
+        else
+            local handbrakeDrag = -3.5 * state.vehicleMass
+            local forwardVec = state.activeVehicle:GetWorldForward()
+            local forwardSpeed = velocity.x * forwardVec.x + velocity.y * forwardVec.y + velocity.z * forwardVec.z
+            if forwardSpeed < -0.1 then
+                handbrakeDrag = -handbrakeDrag
+            end
+            local dragVec = Vector4.new(forwardVec.x * handbrakeDrag, forwardVec.y * handbrakeDrag, forwardVec.z * handbrakeDrag, 0.0)
+            state.activeVehicle:AddCollisionForce(dragVec)
+        end
+    end
+    if settings.cruiseControlEnabled then
+        if not state.cruiseControlTargetSpeed then
+            state.cruiseControlTargetSpeed = currentSpeed
+            logger.logDebug(string.format("Cruise Control activated at current speed: %.1f km/h", currentSpeed * 3.6))
+        end
+    else
+        state.cruiseControlTargetSpeed = nil
+    end
+
+    local targetDragMag = 0.0
+    local isLimiterActive = false
+
+    if settings.cruiseControlEnabled and state.cruiseControlTargetSpeed then
+        if currentSpeed > state.cruiseControlTargetSpeed then
+            local diffMS = currentSpeed - state.cruiseControlTargetSpeed
+            targetDragMag = -45.0 * state.vehicleMass * diffMS
+            state.activeVehicle:ForceBrakesFor(dt)
+            isLimiterActive = true
+            
+            local forwardVec = state.activeVehicle:GetWorldForward()
+            local forwardSpeed = velocity.x * forwardVec.x + velocity.y * forwardVec.y + velocity.z * forwardVec.z
+            if activeGearIdx == 0 and forwardSpeed < -0.1 then
+                targetDragMag = -targetDragMag
+            end
+        end
+    elseif activeGearIdx then
         local selectedGear = state.vehicleGears[activeGearIdx]
         if not selectedGear and activeGearIdx == 0 then
             local scale = settings.gearSpeedScale or 1.0
@@ -265,48 +306,98 @@ local function updateTransmission(dt)
         elseif not selectedGear and #state.vehicleGears > 0 then
             selectedGear = state.vehicleGears[#state.vehicleGears]
         end
-        if selectedGear then
-            local isCruise = settings.cruiseControlEnabled
+        
+        if selectedGear and not state.isClutchPressed then
             local maxSpeed = selectedGear.maxSpeed
-            if isCruise then
-                maxSpeed = selectedGear.normalMaxSpeed
-            end
             if currentSpeed > maxSpeed then
+                local diffMS = currentSpeed - maxSpeed
+                isLimiterActive = true
+                
+                local isChugging = math.random() < 0.4
+                if isChugging then
+                    state.activeVehicle:ForceBrakesFor(dt)
+                    targetDragMag = -25.0 * state.vehicleMass * diffMS
+                else
+                    targetDragMag = -10.0 * state.vehicleMass * diffMS
+                end
+                
                 local forwardVec = state.activeVehicle:GetWorldForward()
                 local forwardSpeed = velocity.x * forwardVec.x + velocity.y * forwardVec.y + velocity.z * forwardVec.z
-                local diffMS = currentSpeed - maxSpeed
-                local dragMag = 0.0
-                if isCruise then
-                    dragMag = -4.0 * state.vehicleMass * diffMS
-                else
-                    dragMag = -12.0 * state.vehicleMass * diffMS
-                end
                 if activeGearIdx == 0 and forwardSpeed < -0.1 then
-                    dragMag = -dragMag
+                    targetDragMag = -targetDragMag
                 end
-                if dragMag < -maxDecelForce then dragMag = -maxDecelForce end
-                if dragMag > maxDecelForce then dragMag = maxDecelForce end
-                local dragVec = Vector4.new(forwardVec.x * dragMag, forwardVec.y * dragMag, forwardVec.z * dragMag, 0.0)
-                state.activeVehicle:AddCollisionForce(dragVec)
-                logger.logDebug(string.format("Speed Limiter active: Speed=%.2f m/s (%.1f km/h), Max=%.2f m/s (%.1f km/h), Force=%.1f N, BrakesApplied=false, Cruise=%s", 
-                    currentSpeed, currentSpeed * 3.6, maxSpeed, maxSpeed * 3.6, dragMag, tostring(isCruise)))
             end
         end
     end
 
-    if activeGearIdx and activeGearIdx > 1 and not state.isClutchPressed and isThrottlePressed then
+    state.speedLimiterForce = targetDragMag
+
+    local forceApplied = math.abs(state.speedLimiterForce) > 1.0
+    if forceApplied ~= state.lastLimiterActive then
+        state.lastLimiterActive = forceApplied
+        logger.logDebug(string.format("Speed Limiter active state changed: %s (Force=%.1f N)", tostring(forceApplied), state.speedLimiterForce))
+    end
+
+    if math.abs(state.speedLimiterForce) > 1.0 then
+        local maxDecel = 60.0 * 9.81 * state.vehicleMass
+        local dragMag = state.speedLimiterForce
+        if dragMag < -maxDecel then dragMag = -maxDecel end
+        if dragMag > maxDecel then dragMag = maxDecel end
+        local forwardVec = state.activeVehicle:GetWorldForward()
+        local dragVec = Vector4.new(forwardVec.x * dragMag, forwardVec.y * dragMag, forwardVec.z * dragMag, 0.0)
+        state.activeVehicle:AddCollisionForce(dragVec)
+    else
+        state.speedLimiterForce = 0.0
+    end
+
+    if settings.transmissionMode == "Manual" and activeGearIdx and not state.isClutchPressed and state.currentGearState ~= "N" then
         local selectedGear = state.vehicleGears[activeGearIdx]
-        if selectedGear and currentSpeed < selectedGear.minSpeed then
-            local lugRatio = (selectedGear.minSpeed - currentSpeed) / selectedGear.minSpeed
-            local vibration = math.sin(os.clock() * 45.0) * lugRatio * 0.3 * state.vehicleMass
-            local lugDrag = -0.6 * lugRatio * state.vehicleMass
-            local forwardVec = state.activeVehicle:GetWorldForward()
-            local forceMag = vibration + lugDrag
-            local forceVec = Vector4.new(forwardVec.x * forceMag, forwardVec.y * forceMag, forwardVec.z * forceMag, 0.0)
-            state.activeVehicle:AddCollisionForce(forceVec)
-            if math.random() < 0.05 then
-                logger.logDebug(string.format("Engine lugging/chugging: speed=%.2f m/s (%.1f km/h), min=%.2f m/s (%.1f km/h), ratio=%.2f", 
-                    currentSpeed, currentSpeed * 3.6, selectedGear.minSpeed, selectedGear.minSpeed * 3.6, lugRatio))
+        if selectedGear then
+            local minSpeed = selectedGear.minSpeed
+            local stallSpeed = minSpeed * 0.90
+            
+            if activeGearIdx == 1 or activeGearIdx == 0 then
+                minSpeed = 2.0 / 3.6
+                stallSpeed = 1.0 / 3.6
+            end
+            
+            if currentSpeed < minSpeed then
+                local forwardVec = state.activeVehicle:GetWorldForward()
+                local lugRatio = (minSpeed - currentSpeed) / minSpeed
+                local vibration = math.sin(os.clock() * 45.0) * lugRatio * 0.35 * state.vehicleMass
+                local lugDrag = -0.7 * lugRatio * state.vehicleMass
+                local forceMag = vibration + lugDrag
+                local forceVec = Vector4.new(forwardVec.x * forceMag, forwardVec.y * forceMag, forwardVec.z * forceMag, 0.0)
+                state.activeVehicle:AddCollisionForce(forceVec)
+                
+                if math.random() < 0.05 then
+                    logger.logDebug(string.format("Engine lugging/chugging: gear=%s, speed=%.1f km/h, min=%.1f km/h", 
+                        state.currentGearState, currentSpeed * 3.6, minSpeed * 3.6))
+                end
+                
+                local shouldStall = false
+                if activeGearIdx > 1 then
+                    shouldStall = currentSpeed < stallSpeed
+                else
+                    local isBraking = false
+                    if state.activeVehicleBB then
+                        local isHandbraking = state.activeVehicleBB:GetInt(GetAllBlackboardDefs().Vehicle.IsHandbraking) == 1
+                        local isFootBraking = (activeGearIdx == 0 and state.isAcceleratePressed) or (activeGearIdx == 1 and state.isDeceleratePressed)
+                        isBraking = isHandbraking or isFootBraking
+                    end
+                    shouldStall = (currentSpeed < stallSpeed) and (isBraking or isThrottlePressed)
+                end
+                
+                if shouldStall then
+                    state.isEngineStalled = true
+                    state.activeVehicle:TurnEngineOn(false)
+                    setGearBlock(true)
+                    GameObject.PlaySoundEvent(GetPlayer(), 'ui_menu_error')
+                    logger.logDebug(string.format("Engine stalled: Gear=%s, Speed=%.1f km/h, StallThreshold=%.1f km/h", 
+                        state.currentGearState, currentSpeed * 3.6, stallSpeed * 3.6))
+                    hudInterface.updateHUDState()
+                    return
+                end
             end
         end
     end
@@ -316,18 +407,28 @@ local function updateTransmission(dt)
 
     if state.currentGearState == "N" then
         setGearBlock(true)
-        if isThrottlePressed then
-            if currentSpeed < 2.0 then
-                local dragMag = -35.0 * state.vehicleMass * forwardSpeed
-                local dragVec = Vector4.new(forwardVec.x * dragMag, forwardVec.y * dragMag, forwardVec.z * dragMag, 0.0)
-                state.activeVehicle:AddCollisionForce(dragVec)
-            else
-                local dragMag = -6.0 * state.vehicleMass * forwardSpeed
-                local dragVec = Vector4.new(forwardVec.x * dragMag, forwardVec.y * dragMag, forwardVec.z * dragMag, 0.0)
-                state.activeVehicle:AddCollisionForce(dragVec)
-            end
-        elseif currentSpeed < 1.0 then
+        if currentSpeed < 1.5 then
             state.activeVehicle:ForceBrakesFor(dt)
+        end
+        if isThrottlePressed then
+            local throttleVal = state.accelerateVal or 1.0
+            if throttleVal > 0.01 then
+                local nativeGearIdx = currentGear
+                if nativeGearIdx == 0 then nativeGearIdx = 1 end
+                local selectedGear = state.vehicleGears[nativeGearIdx]
+                local torqueMult = selectedGear and selectedGear.torqueMultiplier or 1.0
+                local accelFactor = 8.5
+                local dragMag = -accelFactor * state.vehicleMass * torqueMult * throttleVal
+                if forwardSpeed < -0.1 then
+                    dragMag = -dragMag
+                end
+                local dragVec = Vector4.new(forwardVec.x * dragMag, forwardVec.y * dragMag, forwardVec.z * dragMag, 0.0)
+                state.activeVehicle:AddCollisionForce(dragVec)
+                if math.random() < 0.08 then
+                    logger.logDebug(string.format("Neutral acceleration cancel: Speed=%.1f km/h | NativeGear=%d | TorqueMult=%.2f | CounterForce=%.1f N", 
+                        currentSpeed * 3.6, nativeGearIdx, torqueMult, dragMag))
+                end
+            end
         end
         hudInterface.updateHUDState()
         return
@@ -402,7 +503,19 @@ local function updateTransmission(dt)
             state.isShifting = false
             logger.logDebug(string.format("Shift window finished. Target=%d, Actual=%d", state.targetGear, currentGear))
             if settings.transmissionMode == "Manual" or state.isManualOverride then
-                setGearBlock(true)
+                if currentGear == state.targetGear then
+                    setGearBlock(true)
+                else
+                    if currentGear == 0 then
+                        state.currentGearState = "R"
+                    elseif currentGear == -1 or currentGear == nil then
+                        state.currentGearState = "N"
+                    else
+                        state.currentGearState = tostring(currentGear)
+                    end
+                    setGearBlock(true)
+                    logger.logDebug(string.format("Shift failed. Reverted expected gear to actual native gear: %s", state.currentGearState))
+                end
             else
                 if state.currentGearState == "N" then
                     setGearBlock(true)
@@ -418,6 +531,16 @@ local function updateTransmission(dt)
         if state.clutchTransitionTimer > 0.0 then
             state.clutchTransitionTimer = state.clutchTransitionTimer - dt
         end
+        
+        local clutchEngaged = 1.0
+        if settings.transmissionMode == "Manual" then
+            if state.isClutchPressed then
+                clutchEngaged = 0.0
+            elseif state.clutchTransitionTimer > 0.0 then
+                clutchEngaged = 1.0 - (state.clutchTransitionTimer / 0.2)
+            end
+        end
+
         local gearIdx = nil
         if state.currentGearState == "R" then
             gearIdx = 0
@@ -426,32 +549,60 @@ local function updateTransmission(dt)
         else
             gearIdx = tonumber(state.currentGearState)
         end
+
+        if settings.transmissionMode == "Manual" and not state.isClutchPressed and state.currentGearState ~= "N" then
+            local expectedGearVal = (state.currentGearState == "R") and 0 or tonumber(state.currentGearState)
+            if expectedGearVal and currentGear ~= expectedGearVal and not state.isShifting then
+                state.isShifting = true
+                state.shiftTimeoutTimer = 0.5
+                state.targetGear = expectedGearVal
+                state.clutchTransitionTimer = 0.2
+                setGearBlock(false)
+                logger.logDebug(string.format("Clutch released: Triggering native shift to expected gear %d (Native current=%d)", expectedGearVal, currentGear))
+            end
+        end
+
         if settings.transmissionMode == "Manual" and state.isClutchPressed then
-            if not state.isShifting then
-                local expectedGear = tonumber(state.currentGearState)
-                if expectedGear and currentGear == expectedGear then
-                    setGearBlock(true)
-                else
-                    setGearBlock(false)
-                end
+            setGearBlock(true)
+            if currentSpeed < 1.5 then
+                state.activeVehicle:ForceBrakesFor(dt)
             end
             if isThrottlePressed then
-                if currentSpeed < 2.0 then
-                    local dragMag = -35.0 * state.vehicleMass * forwardSpeed
-                    local dragVec = Vector4.new(forwardVec.x * dragMag, forwardVec.y * dragMag, forwardVec.z * dragMag, 0.0)
-                    state.activeVehicle:AddCollisionForce(dragVec)
-                else
-                    local dragMag = -6.0 * state.vehicleMass * forwardSpeed
+                local throttleVal = state.accelerateVal or 1.0
+                if state.currentGearState == "R" then
+                    throttleVal = state.decelerateVal or 1.0
+                end
+                if throttleVal > 0.01 then
+                    local nativeGearIdx = currentGear
+                    if nativeGearIdx <= 0 then nativeGearIdx = 1 end
+                    local selectedGear = state.vehicleGears[nativeGearIdx]
+                    local torqueMult = selectedGear and selectedGear.torqueMultiplier or 1.0
+                    local accelFactor = 8.5
+                    local dragMag = -accelFactor * state.vehicleMass * torqueMult * throttleVal
+                    if forwardSpeed < -0.1 then
+                        dragMag = -dragMag
+                    end
                     local dragVec = Vector4.new(forwardVec.x * dragMag, forwardVec.y * dragMag, forwardVec.z * dragMag, 0.0)
                     state.activeVehicle:AddCollisionForce(dragVec)
                 end
-            elseif currentSpeed < 1.0 then
-                state.activeVehicle:ForceBrakesFor(0.1)
-                logger.logDebug(string.format("Clutch creep prevention: speed=%.2f m/s (%.1f km/h), applying brakes", currentSpeed, currentSpeed * 3.6))
             end
             hudInterface.updateHUDState()
             return
         end
+
+        if settings.transmissionMode == "Manual" and clutchEngaged < 1.0 and state.currentGearState ~= "N" then
+            local creepForce = 0.0
+            if state.currentGearState == "1" then
+                creepForce = (1.0 - clutchEngaged) * 1.8 * state.vehicleMass
+            elseif state.currentGearState == "R" then
+                creepForce = -(1.0 - clutchEngaged) * 1.8 * state.vehicleMass
+            end
+            if math.abs(creepForce) > 0.1 then
+                local forceVec = Vector4.new(forwardVec.x * creepForce, forwardVec.y * creepForce, forwardVec.z * creepForce, 0.0)
+                state.activeVehicle:AddCollisionForce(forceVec)
+            end
+        end
+
         if state.currentGearState == "N" then
             setGearBlock(true)
             if isThrottlePressed then
@@ -466,54 +617,15 @@ local function updateTransmission(dt)
                 end
             elseif currentSpeed < 1.0 then
                 state.activeVehicle:ForceBrakesFor(0.1)
-                logger.logDebug(string.format("Neutral creep prevention: speed=%.2f m/s (%.1f km/h), applying brakes", currentSpeed, currentSpeed * 3.6))
             end
             hudInterface.updateHUDState()
             return
         end
-        if settings.transmissionMode == "Manual" and not state.isClutchPressed and state.currentGearState ~= "N" then
-            local selectedGear = state.vehicleGears[gearIdx]
-            if selectedGear then
-                local gearMaxRPM = selectedGear.maxRPM or 6500.0
-                if gearMaxRPM <= 0 then gearMaxRPM = 6500.0 end
-                local stallSpeed = selectedGear.maxSpeed * (550.0 / gearMaxRPM)
-                if stallSpeed < 1.5 then stallSpeed = 1.5 end
-                if currentSpeed < stallSpeed then
-                    local isBraking = false
-                    if state.activeVehicleBB then
-                        local isHandbraking = state.activeVehicleBB:GetInt(GetAllBlackboardDefs().Vehicle.IsHandbraking) == 1
-                        local isFootBraking = false
-                        if gearIdx == 0 then
-                            isFootBraking = state.isAcceleratePressed
-                        else
-                            isFootBraking = state.isDeceleratePressed
-                        end
-                        isBraking = isHandbraking or isFootBraking
-                    end
-                    if (gearIdx == 1 or gearIdx == 0) and not isBraking and currentSpeed < 1.5 then
-                        local forceMag = 0.8 * state.vehicleMass
-                        if isThrottlePressed then
-                            forceMag = 1.8 * state.vehicleMass
-                        end
-                        if gearIdx == 0 then forceMag = -forceMag end
-                        local forwardVec = state.activeVehicle:GetWorldForward()
-                        local forceVec = Vector4.new(forwardVec.x * forceMag, forwardVec.y * forceMag, forwardVec.z * forceMag, 0.0)
-                        state.activeVehicle:AddCollisionForce(forceVec)
-                        logger.logDebug(string.format("Clutch creep/bite: Speed=%.2f m/s (%.1f km/h), Gear=%d, Force=%.1f N", currentSpeed, currentSpeed * 3.6, gearIdx, forceMag))
-                    else
-                        state.isEngineStalled = true
-                        state.activeVehicle:TurnEngineOn(false)
-                        setGearBlock(true)
-                        GameObject.PlaySoundEvent(GetPlayer(), 'ui_menu_error')
-                        logger.logDebug(string.format("Stall triggered: Released clutch below stall speed (Speed=%.2f m/s (%.1f km/h), StallSpeed=%.2f m/s (%.1f km/h)) in gear %s", currentSpeed, currentSpeed * 3.6, stallSpeed, stallSpeed * 3.6, state.currentGearState))
-                        hudInterface.updateHUDState()
-                        return
-                    end
-                end
-            end
-        end
+
         if not state.isShifting then
-            if state.currentGearState == "R" then
+            if state.currentGearState == "N" then
+                setGearBlock(true)
+            elseif state.currentGearState == "R" then
                 if currentGear == 0 then
                     setGearBlock(true)
                 else
@@ -521,10 +633,21 @@ local function updateTransmission(dt)
                 end
             else
                 local expectedGear = tonumber(state.currentGearState)
-                if expectedGear and currentGear == expectedGear then
-                    setGearBlock(true)
-                else
-                    setGearBlock(false)
+                if expectedGear then
+                    if currentGear == expectedGear then
+                        setGearBlock(true)
+                    elseif currentGear < expectedGear then
+                        setGearBlock(false)
+                    elseif currentGear > expectedGear then
+                        local targetGearRec = state.vehicleGears[expectedGear]
+                        local thresholdSpeed = targetGearRec and (targetGearRec.normalMaxSpeed * 1.25) or 999.0
+                        if currentSpeed > thresholdSpeed then
+                            logger.logDebug(string.format("Downshift Blocked (Speed too high, clutch released): expected=%d, native=%d, speed=%.1f km/h, threshold=%.1f km/h", expectedGear, currentGear, currentSpeed * 3.6, thresholdSpeed * 3.6))
+                            setGearBlock(true)
+                        else
+                            setGearBlock(false)
+                        end
+                    end
                 end
             end
         end
@@ -533,7 +656,9 @@ local function updateTransmission(dt)
             if selectedGear then
                 if state.clutchTransitionTimer > 0.0 then
                     local forwardVec = state.activeVehicle:GetWorldForward()
-                    local slipMag = -2.0 * state.vehicleMass
+                    local throttleVal = state.accelerateVal or 1.0
+                    local slipMag = -2.0 * state.vehicleMass + (clutchEngaged * throttleVal * 3.0 * state.vehicleMass)
+                    if gearIdx == 0 then slipMag = -slipMag end
                     local slipVec = Vector4.new(forwardVec.x * slipMag, forwardVec.y * slipMag, forwardVec.z * slipMag, 0.0)
                     state.activeVehicle:AddCollisionForce(slipVec)
                 elseif isThrottlePressed then
@@ -552,7 +677,7 @@ local function updateTransmission(dt)
                             logger.logDebug(string.format("Torque boost blocked (Downshifting): Target=%d, Native=%d, Ratio=%.2f (Speed Limiter will engine brake)", gearIdx, nativeGearIdx, ratio))
                         end
                     elseif ratio < 1.0 then
-                        if currentSpeed > 0.1 then
+                        if currentSpeed > 0.1 and nativeGearIdx >= gearIdx then
                             forceMag = (ratio - 1.0) * 1.2 * state.vehicleMass
                         end
                     end
@@ -650,10 +775,10 @@ local function updateTransmission(dt)
                 isCruisingThrottlePressed = state.isAcceleratePressed
             end
             if isCruisingThrottlePressed then
+                local maxDecelForce = 6.0 * 9.81 * state.vehicleMass
                 local cruiseDragMag = 0.0
                 if currentSpeed > maxCruiseSpeed then
-                    local diff = currentSpeed - maxCruiseSpeed
-                    cruiseDragMag = -8.0 * state.vehicleMass * diff
+                    cruiseDragMag = -1.5 * state.vehicleMass * (1.0 - settings.cruiseThrottle)
                 else
                     cruiseDragMag = -1.2 * state.vehicleMass * (1.0 - settings.cruiseThrottle)
                 end
@@ -681,7 +806,9 @@ local function updateTransmission(dt)
         end
     end
     local isHandbraking = false
-    if state.activeVehicleBB then
+    if state.isHandbrakeToggled then
+        isHandbraking = true
+    elseif state.activeVehicleBB then
         isHandbraking = state.activeVehicleBB:GetInt(GetAllBlackboardDefs().Vehicle.IsHandbraking) == 1
     end
     local maxRPM = state.activeVehicleBB:GetFloat(GetAllBlackboardDefs().Vehicle.RPMMax)
@@ -692,7 +819,7 @@ local function updateTransmission(dt)
     local slideReason = ""
     if isHandbraking then
         isSlideActive = true
-        slideFactor = 0.50
+        slideFactor = 0.60
         slideReason = "Handbrake"
     elseif settings.transmissionMode == "Manual" or state.isManualOverride then
         if isThrottlePressed and (state.currentGearState == "1" or state.currentGearState == "2") and rpmPct > 0.55 then

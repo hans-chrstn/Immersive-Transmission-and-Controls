@@ -37,19 +37,25 @@ local function registerInputHandlers()
         if actionName == "vehicleAccelerate" or actionName == "vehicleAccelerate2" or actionName == "Acceleration_Axis" then
             if isPressed then
                 state.isAcceleratePressed = true
+                state.accelerateVal = 1.0
             elseif isReleased then
                 state.isAcceleratePressed = false
+                state.accelerateVal = 0.0
             else
                 state.isAcceleratePressed = (actionVal > 0.05)
+                state.accelerateVal = actionVal
             end
             logger.logDebug(string.format("Input vehicleAccelerate: val=%.2f, type=%s, pressed=%s, name=%s", actionVal, tostring(actionType), tostring(state.isAcceleratePressed), actionName))
         elseif actionName == "vehicleDecelrate" or actionName == "vehicleDecelerate" or actionName == "vehicleDecelerate2" or actionName == "Deceleration_Axis" then
             if isPressed then
                 state.isDeceleratePressed = true
+                state.decelerateVal = 1.0
             elseif isReleased then
                 state.isDeceleratePressed = false
+                state.decelerateVal = 0.0
             else
                 state.isDeceleratePressed = (actionVal > 0.05)
+                state.decelerateVal = actionVal
             end
             logger.logDebug(string.format("Input vehicleDecelerate: val=%.2f, type=%s, pressed=%s, name=%s", actionVal, tostring(actionType), tostring(state.isDeceleratePressed), actionName))
         end
