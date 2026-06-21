@@ -37,7 +37,10 @@ local state = {
         posY = -1,
         cc = -1,
         engine = -1,
-        mounted = -1
+        mounted = -1,
+        speed = -1,
+        rpm = -1,
+        rpmRaw = -1
     }
 }
 return state

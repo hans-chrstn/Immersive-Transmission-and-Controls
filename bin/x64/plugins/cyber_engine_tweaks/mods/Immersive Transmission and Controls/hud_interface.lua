@@ -65,6 +65,23 @@ local function updateHUDState()
     local footBrakeVal = state.isDeceleratePressed and 1 or 0
     local posXVal = math.floor((settings.hudX or 0.85) * 100)
     local posYVal = math.floor((settings.hudY or 0.82) * 100)
+
+    -- Calculate Speed & RPM
+    local speedVal = 0
+    if state.activeVehicle then
+        local velocity = state.activeVehicle:GetLinearVelocity()
+        speedVal = math.floor(math.sqrt(velocity.x^2 + velocity.y^2 + velocity.z^2) * 3.6)
+    end
+
+    local rawRPM = 0
+    local rpmPercent = 0
+    if state.activeVehicleBB then
+        rawRPM = math.floor(state.activeVehicleBB:GetFloat(GetAllBlackboardDefs().Vehicle.RPMValue))
+        local maxRPM = state.activeVehicleBB:GetFloat(GetAllBlackboardDefs().Vehicle.RPMMax)
+        if not maxRPM or maxRPM <= 0 then maxRPM = 8000.0 end
+        rpmPercent = math.floor((rawRPM / maxRPM) * 100)
+    end
+
     if showHUDVal ~= state.lastSentHUD.visible or
        modeVal ~= state.lastSentHUD.mode or
        gearVal ~= state.lastSentHUD.gear or
@@ -76,7 +93,11 @@ local function updateHUDState()
        posYVal ~= state.lastSentHUD.posY or
        ccVal ~= state.lastSentHUD.cc or
        engineVal ~= state.lastSentHUD.engine or
-       mountedVal ~= state.lastSentHUD.mounted then
+       mountedVal ~= state.lastSentHUD.mounted or
+       speedVal ~= state.lastSentHUD.speed or
+       rpmPercent ~= state.lastSentHUD.rpm or
+       rawRPM ~= state.lastSentHUD.rpmRaw then
+
         state.lastSentHUD.visible = showHUDVal
         state.lastSentHUD.mode = modeVal
         state.lastSentHUD.gear = gearVal
@@ -89,6 +110,10 @@ local function updateHUDState()
         state.lastSentHUD.cc = ccVal
         state.lastSentHUD.engine = engineVal
         state.lastSentHUD.mounted = mountedVal
+        state.lastSentHUD.speed = speedVal
+        state.lastSentHUD.rpm = rpmPercent
+        state.lastSentHUD.rpmRaw = rawRPM
+
         setHUDFact("itc_hud_visible", showHUDVal)
         setHUDFact("itc_hud_mounted", mountedVal)
         setHUDFact("itc_hud_mode", modeVal)
@@ -101,6 +126,9 @@ local function updateHUDState()
         setHUDFact("itc_hud_pos_y", posYVal)
         setHUDFact("itc_hud_cc", ccVal)
         setHUDFact("itc_hud_engine", engineVal)
+        setHUDFact("itc_hud_speed", speedVal)
+        setHUDFact("itc_hud_rpm", rpmPercent)
+        setHUDFact("itc_hud_rpm_raw", rawRPM)
 
         local uiSys = Game.GetUISystem()
         if uiSys then
@@ -112,8 +140,8 @@ local function updateHUDState()
             end
         end
 
-        logger.logDebug(string.format("HUD Fact Update: Vis=%d, Mounted=%d, Mode=%d, Gear=%d, Diff=%d, PB=%d, Clutch=%d, Brake=%d, CC=%d, Engine=%d, X=%d, Y=%d", 
-            showHUDVal, mountedVal, modeVal, gearVal, diffLockedVal, handbrakeVal, clutchVal, footBrakeVal, ccVal, engineVal, posXVal, posYVal))
+        logger.logDebug(string.format("HUD Fact Update: Vis=%d, Mounted=%d, Mode=%d, Gear=%d, Diff=%d, PB=%d, Clutch=%d, Brake=%d, CC=%d, Engine=%d, Spd=%d, RPM=%d, X=%d, Y=%d", 
+            showHUDVal, mountedVal, modeVal, gearVal, diffLockedVal, handbrakeVal, clutchVal, footBrakeVal, ccVal, engineVal, speedVal, rawRPM, posXVal, posYVal))
     end
 end
 
