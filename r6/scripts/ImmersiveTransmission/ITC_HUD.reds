@@ -40,10 +40,11 @@ public class ITC_HUD extends IScriptable {
   private let lastVisible: Int32;
   private let lastClutch: Int32;
   private let lastFootBrake: Int32;
+  private let lastCC: Int32;
 
-  private func RootExists(rootNode: ref<inkCompoundWidget>) -> Bool {
-    if !IsDefined(rootNode) { return false; }
-    let canvas: ref<inkCanvas> = rootNode.GetWidget(n"ITC_HUD_Canvas") as inkCanvas;
+  private func RootExists(vwin: ref<inkCompoundWidget>) -> Bool {
+    if !IsDefined(vwin) { return false; }
+    let canvas: ref<inkCanvas> = vwin.GetWidget(n"ITC_HUD_Canvas") as inkCanvas;
     return IsDefined(canvas);
   }
 
@@ -64,95 +65,68 @@ public class ITC_HUD extends IScriptable {
       return;
     }
 
-    let rootNode = vwin.GetWidgetByPathName(n"Root") as inkCompoundWidget;
-    if !IsDefined(rootNode) {
-      this.ArmNextTick();
-      return;
-    }
-
-    if this.__built && !this.RootExists(rootNode) {
-      LogChannel(n"DEBUG", "ITC HUD: RootExists returned false. Resetting built state.");
+    if this.__built && !this.RootExists(vwin) {
       this.__built = false;
       this.__dirty = true;
     }
 
     if !this.__built {
-      LogChannel(n"DEBUG", "ITC HUD: Rebuilding widgets...");
-      let canvas: ref<inkCanvas> = rootNode.GetWidget(n"ITC_HUD_Canvas") as inkCanvas;
-      if !IsDefined(canvas) {
-        canvas = new inkCanvas();
-        canvas.SetName(n"ITC_HUD_Canvas");
-        canvas.SetSize(new Vector2(250.0, 150.0));
-        canvas.SetInteractive(false);
-        canvas.Reparent(rootNode);
+      let oldCanvas = vwin.GetWidget(n"ITC_HUD_Canvas");
+      if IsDefined(oldCanvas) {
+        vwin.RemoveChild(oldCanvas);
       }
+
+      let canvas: ref<inkCanvas> = new inkCanvas();
+      canvas.SetName(n"ITC_HUD_Canvas");
+      canvas.SetSize(new Vector2(250.0, 150.0));
+      canvas.SetInteractive(false);
+      canvas.SetVisible(false);
+      canvas.Reparent(vwin);
       this.rootCanvas = canvas;
 
-      let bg: ref<inkRectangle> = canvas.GetWidget(n"ITC_HUD_BG") as inkRectangle;
-      if !IsDefined(bg) {
-        bg = new inkRectangle();
-        bg.SetName(n"ITC_HUD_BG");
-        bg.SetSize(new Vector2(160.0, 95.0));
-        let darkColor: HDRColor;
-        darkColor.Red = 0.03; darkColor.Green = 0.03; darkColor.Blue = 0.03; darkColor.Alpha = 0.8;
-        bg.SetTintColor(darkColor);
-        bg.Reparent(canvas);
-      }
-      this.backgroundCard = bg;
-
-      let modeTxt: ref<inkText> = canvas.GetWidget(n"ITC_HUD_Mode") as inkText;
-      if !IsDefined(modeTxt) {
-        LogChannel(n"DEBUG", "ITC HUD: Creating Mode text widget");
-        modeTxt = new inkText();
-        modeTxt.SetName(n"ITC_HUD_Mode");
-        modeTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
-        modeTxt.SetFontStyle(n"Medium");
-        modeTxt.SetFontSize(14);
-        modeTxt.SetSize(new Vector2(180.0, 20.0));
-        modeTxt.SetLetterCase(textLetterCase.OriginalCase);
-        modeTxt.SetTranslation(new Vector2(15.0, 8.0));
-        modeTxt.SetVisible(true);
-        modeTxt.SetOpacity(1.0);
-        modeTxt.Reparent(canvas);
-      }
+      let modeTxt: ref<inkText> = new inkText();
+      modeTxt.SetName(n"ITC_HUD_Mode");
+      modeTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
+      modeTxt.SetFontStyle(n"Medium");
+      modeTxt.SetFontSize(14);
+      modeTxt.SetStyle(r"base\\gameplay\\gui\\common\\main_colors.inkstyle");
+      modeTxt.SetFitToContent(true);
+      modeTxt.SetLetterCase(textLetterCase.OriginalCase);
+      modeTxt.SetTranslation(new Vector2(15.0, 8.0));
+      modeTxt.SetVisible(true);
+      modeTxt.SetOpacity(1.0);
+      modeTxt.Reparent(canvas);
       this.modeText = modeTxt;
 
-      let gearTxt: ref<inkText> = canvas.GetWidget(n"ITC_HUD_Gear") as inkText;
-      if !IsDefined(gearTxt) {
-        LogChannel(n"DEBUG", "ITC HUD: Creating Gear text widget");
-        gearTxt = new inkText();
-        gearTxt.SetName(n"ITC_HUD_Gear");
-        gearTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
-        gearTxt.SetFontStyle(n"Bold");
-        gearTxt.SetFontSize(42);
-        gearTxt.SetSize(new Vector2(180.0, 50.0));
-        gearTxt.SetLetterCase(textLetterCase.OriginalCase);
-        gearTxt.SetTranslation(new Vector2(15.0, 20.0));
-        gearTxt.SetVisible(true);
-        gearTxt.SetOpacity(1.0);
-        gearTxt.Reparent(canvas);
-      }
+      let gearTxt: ref<inkText> = new inkText();
+      gearTxt.SetName(n"ITC_HUD_Gear");
+      gearTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
+      gearTxt.SetFontStyle(n"Bold");
+      gearTxt.SetFontSize(42);
+      gearTxt.SetStyle(r"base\\gameplay\\gui\\common\\main_colors.inkstyle");
+      gearTxt.SetFitToContent(true);
+      gearTxt.SetLetterCase(textLetterCase.OriginalCase);
+      gearTxt.SetTranslation(new Vector2(15.0, 20.0));
+      gearTxt.SetVisible(true);
+      gearTxt.SetOpacity(1.0);
+      gearTxt.Reparent(canvas);
       this.gearText = gearTxt;
 
-      let statusTxt: ref<inkText> = canvas.GetWidget(n"ITC_HUD_Status") as inkText;
-      if !IsDefined(statusTxt) {
-        LogChannel(n"DEBUG", "ITC HUD: Creating Status text widget");
-        statusTxt = new inkText();
-        statusTxt.SetName(n"ITC_HUD_Status");
-        statusTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
-        statusTxt.SetFontStyle(n"Regular");
-        statusTxt.SetFontSize(13);
-        statusTxt.SetSize(new Vector2(180.0, 20.0));
-        statusTxt.SetLetterCase(textLetterCase.OriginalCase);
-        statusTxt.SetTranslation(new Vector2(15.0, 70.0));
-        statusTxt.SetVisible(true);
-        statusTxt.SetOpacity(1.0);
-        statusTxt.Reparent(canvas);
-      }
+      let statusTxt: ref<inkText> = new inkText();
+      statusTxt.SetName(n"ITC_HUD_Status");
+      statusTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
+      statusTxt.SetFontStyle(n"Regular");
+      statusTxt.SetFontSize(13);
+      statusTxt.SetStyle(r"base\\gameplay\\gui\\common\\main_colors.inkstyle");
+      statusTxt.SetFitToContent(true);
+      statusTxt.SetLetterCase(textLetterCase.OriginalCase);
+      statusTxt.SetTranslation(new Vector2(15.0, 70.0));
+      statusTxt.SetVisible(true);
+      statusTxt.SetOpacity(1.0);
+      statusTxt.Reparent(canvas);
       this.statusText = statusTxt;
 
       this.__built = true;
-      LogChannel(n"DEBUG", s"ITC HUD: Built successfully. canvas=\(IsDefined(this.rootCanvas)), modeText=\(IsDefined(this.modeText)), gearText=\(IsDefined(this.gearText)), statusText=\(IsDefined(this.statusText))");
     }
 
     this.ArmNextTick();
@@ -199,10 +173,7 @@ public class ITC_HUD extends IScriptable {
     let brake: Int32 = qs.GetFact(n"itc_hud_handbrake");
     let clutch: Int32 = qs.GetFact(n"itc_hud_clutch");
     let footBrake: Int32 = qs.GetFact(n"itc_hud_brake");
-
-    if IsDefined(this.rootCanvas) && IsDefined(this.backgroundCard) {
-      this.rootCanvas.ReorderChild(this.backgroundCard, 0);
-    }
+    let cc: Int32 = qs.GetFact(n"itc_hud_cc");
 
     if vis != 1 {
       if IsDefined(this.rootCanvas) {
@@ -216,7 +187,7 @@ public class ITC_HUD extends IScriptable {
       this.rootCanvas.SetVisible(true);
     }
 
-    if !this.__dirty && mode == this.lastMode && gear == this.lastGear && diff == this.lastDiff && brake == this.lastBrake && vis == this.lastVisible && clutch == this.lastClutch && footBrake == this.lastFootBrake {
+    if !this.__dirty && mode == this.lastMode && gear == this.lastGear && diff == this.lastDiff && brake == this.lastBrake && vis == this.lastVisible && clutch == this.lastClutch && footBrake == this.lastFootBrake && cc == this.lastCC {
       return;
     }
     this.__dirty = false;
@@ -227,42 +198,36 @@ public class ITC_HUD extends IScriptable {
     this.lastVisible = vis;
     this.lastClutch = clutch;
     this.lastFootBrake = footBrake;
-
-    LogChannel(n"DEBUG", s"ITC HUD: Refresh applied. Vis=\(vis), Mode=\(mode), Gear=\(gear), PB=\(brake), Clutch=\(clutch), FootBrake=\(footBrake), PosX=\(posX), PosY=\(posY)");
-
+    this.lastCC = cc;
 
     let modeTxtStr: String = "AUTOMATIC";
-    let modeColor: HDRColor;
+    let modeColorName: CName = n"MainColors.Blue";
     if mode == 1 {
       modeTxtStr = "MANUAL";
-      modeColor.Red = 1.0; modeColor.Green = 0.75; modeColor.Blue = 0.0; modeColor.Alpha = 1.0;
+      modeColorName = n"MainColors.Yellow";
     } else {
       if mode == 2 {
         modeTxtStr = "AUTO OVERRIDE";
-        modeColor.Red = 1.0; modeColor.Green = 0.5; modeColor.Blue = 0.0; modeColor.Alpha = 1.0;
-      } else {
-        modeColor.Red = 0.5; modeColor.Green = 0.6; modeColor.Blue = 0.7; modeColor.Alpha = 0.8;
+        modeColorName = n"MainColors.Orange";
       }
     }
     if IsDefined(this.modeText) {
       this.modeText.SetVisible(true);
       this.modeText.SetOpacity(1.0);
       this.modeText.SetText(modeTxtStr);
-      this.modeText.SetTintColor(modeColor);
-      LogChannel(n"DEBUG", s"ITC HUD: SetModeText to \(modeTxtStr) with color R=\(modeColor.Red), G=\(modeColor.Green), B=\(modeColor.Blue)");
+      this.modeText.BindProperty(n"tintColor", modeColorName);
     }
 
     let gearStr: String = "";
-    let gearColor: HDRColor;
-    gearColor.Red = 1.0; gearColor.Green = 0.75; gearColor.Blue = 0.0; gearColor.Alpha = 1.0;
+    let gearColorName: CName = n"MainColors.Yellow";
 
     if gear == 0 {
       gearStr = "R";
-      gearColor.Red = 1.0; gearColor.Green = 0.25; gearColor.Blue = 0.25; gearColor.Alpha = 1.0;
+      gearColorName = n"MainColors.Red";
     } else {
       if gear == 1 {
         gearStr = "N";
-        gearColor.Red = 0.6; gearColor.Green = 0.6; gearColor.Blue = 0.6; gearColor.Alpha = 1.0;
+        gearColorName = n"MainColors.Grey";
       } else {
         if gear >= 200 {
           gearStr = "M" + IntToString(gear - 200);
@@ -280,8 +245,7 @@ public class ITC_HUD extends IScriptable {
       this.gearText.SetVisible(true);
       this.gearText.SetOpacity(1.0);
       this.gearText.SetText(gearStr);
-      this.gearText.SetTintColor(gearColor);
-      LogChannel(n"DEBUG", s"ITC HUD: SetGearText to \(gearStr) with color R=\(gearColor.Red), G=\(gearColor.Green), B=\(gearColor.Blue)");
+      this.gearText.BindProperty(n"tintColor", gearColorName);
     }
 
     let statusStr: String = "";
@@ -303,6 +267,12 @@ public class ITC_HUD extends IScriptable {
       statusStr = statusStr + "[ ] ";
     }
 
+    if cc == 1 {
+      statusStr = statusStr + "[CC] ";
+    } else {
+      statusStr = statusStr + "[  ] ";
+    }
+
     if diff == 1 {
       statusStr = statusStr + "LOCK";
     } else {
@@ -310,13 +280,10 @@ public class ITC_HUD extends IScriptable {
     }
 
     if IsDefined(this.statusText) {
-      let statusColor: HDRColor;
-      statusColor.Red = 0.8; statusColor.Green = 0.8; statusColor.Blue = 0.8; statusColor.Alpha = 1.0;
       this.statusText.SetVisible(true);
       this.statusText.SetOpacity(1.0);
       this.statusText.SetText(statusStr);
-      this.statusText.SetTintColor(statusColor);
-      LogChannel(n"DEBUG", s"ITC HUD: SetStatusText to \(statusStr) with color R=\(statusColor.Red), G=\(statusColor.Green), B=\(statusColor.Blue)");
+      this.statusText.BindProperty(n"tintColor", n"MainColors.White");
     }
   }
 }

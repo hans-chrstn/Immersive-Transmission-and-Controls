@@ -11,7 +11,8 @@ local settings = {
     steeringScale = 0.85,
     hudX = 0.85,
     hudY = 0.82,
-    gearSpeedScale = 0.70,
+    gearSpeedScale = 1.0,
+    cruiseControlEnabled = false,
     debugMode = true
 }
 

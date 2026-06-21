@@ -1,0 +1,35 @@
+local state = {
+    activeVehicle = nil,
+    activeVehicleBB = nil,
+    isOverlayOpen = false,
+    isMounted = false,
+    vehicleGears = {},
+    vehicleMass = 1500.0,
+    clutchTransitionTimer = 0.0,
+    currentGearState = "N",
+    targetGear = 1,
+    blockChangeGearState = true,
+    isShifting = false,
+    shiftTimeoutTimer = 0.0,
+    isManualOverride = false,
+    overrideTimer = 0.0,
+    overrideThresholdRPM = 0.90,
+    isClutchPressed = false,
+    isEngineStalled = false,
+    isAcceleratePressed = false,
+    isDeceleratePressed = false,
+    isFullThrottlePressed = false,
+    lastSentHUD = {
+        visible = -1,
+        mode = -1,
+        gear = -1,
+        diff = -1,
+        handbrake = -1,
+        clutch = -1,
+        brake = -1,
+        posX = -1,
+        posY = -1,
+        cc = -1
+    }
+}
+return state
