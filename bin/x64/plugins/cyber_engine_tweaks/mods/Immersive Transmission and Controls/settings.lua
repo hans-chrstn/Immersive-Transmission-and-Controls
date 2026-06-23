@@ -13,6 +13,7 @@ local settings = {
     hudY = 0.82,
     gearSpeedScale = 1.0,
     cruiseControlEnabled = false,
+    stallEnabled = true,
     debugMode = true
 }
 

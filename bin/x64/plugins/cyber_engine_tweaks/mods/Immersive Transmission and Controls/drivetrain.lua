@@ -5,20 +5,19 @@ local function applyDrivetrainForces(dt)
     if not vehicle then return end
     if state.gearbox.current == "N" then return end
     if state.vehicle.isBike then return end
-    if state.engine.isStalled then return end
+    local releaseBlock = false
 
-    if state.gearbox.current == "1" and state.vehicle.bb then
-        if state.inputs.accelerate then
-            if not state.gearbox.blockChange then
-                GameOptions.SetBool("Vehicle", "BlockChangeGear", true)
-                state.gearbox.blockChange = true
-            end
-        else
-            if state.gearbox.blockChange then
-                GameOptions.SetBool("Vehicle", "BlockChangeGear", false)
-                state.gearbox.blockChange = false
-            end
-        end
+    if state.gearbox.current == "1" and not state.inputs.accelerate and not state.clutch.isPressed then
+        releaseBlock = true
+    end
+
+    if state.clutch.isPressed and not state.inputs.accelerate then
+        releaseBlock = true
+    end
+
+    if releaseBlock and state.gearbox.blockChange then
+        GameOptions.SetBool("Vehicle", "BlockChangeGear", false)
+        state.gearbox.blockChange = false
     end
 end
 

@@ -84,6 +84,15 @@ local function updateHUDState(dt)
     local posYVal = math.floor((settings.hudY or 0.82) * 100)
 
     local speedVal = 0
+    local rawRPM = 0
+    local rpmPercent = 0
+    local rpmZone = 1
+    if state.vehicle.bb then
+        rawRPM = math.floor(state.vehicle.bb:GetFloat(GetAllBlackboardDefs().Vehicle.RPMValue))
+        local maxRPM = state.vehicle.bb:GetFloat(GetAllBlackboardDefs().Vehicle.RPMMax)
+        if not maxRPM or maxRPM <= 0 then maxRPM = 8000.0 end
+        rpmPercent = math.floor((rawRPM / maxRPM) * 100)
+    end
     if state.vehicle.active then
         local success, vel = pcall(function() return state.vehicle.active:GetLinearVelocity() end)
         if success and vel then
@@ -92,15 +101,32 @@ local function updateHUDState(dt)
         else
             speedVal = math.floor(state.vehicle.active:GetCurrentSpeed() * 3.6)
         end
-    end
-
-    local rawRPM = 0
-    local rpmPercent = 0
-    if state.vehicle.bb then
-        rawRPM = math.floor(state.vehicle.bb:GetFloat(GetAllBlackboardDefs().Vehicle.RPMValue))
-        local maxRPM = state.vehicle.bb:GetFloat(GetAllBlackboardDefs().Vehicle.RPMMax)
-        if not maxRPM or maxRPM <= 0 then maxRPM = 8000.0 end
-        rpmPercent = math.floor((rawRPM / maxRPM) * 100)
+        local gearIdx = nil
+        if settings.transmissionMode == "Manual" then
+            if state.gearbox.current == "R" then gearIdx = 0
+            elseif state.gearbox.current ~= "N" then gearIdx = tonumber(state.gearbox.current) end
+        elseif state.gearbox.current == "D" then
+            local nativeGear = state.vehicle.bb and state.vehicle.bb:GetInt(GetAllBlackboardDefs().Vehicle.GearValue) or 1
+            gearIdx = math.max(1, nativeGear)
+        end
+        if gearIdx then
+            local gearRec = state.vehicle.gears[gearIdx]
+            if gearRec then
+                local s = math.max(0.0, state.vehicle.active:GetCurrentSpeed())
+                local redlineMin = gearRec.redlineMin or gearRec.maxSpeed or 999.0
+                local normalMax = gearRec.normalMaxSpeed or 999.0
+                local minSpd = gearRec.minSpeed or 0.0
+                if s >= redlineMin then
+                    rpmZone = 3
+                elseif s >= normalMax then
+                    rpmZone = 2
+                elseif s >= minSpd then
+                    rpmZone = 1
+                else
+                    rpmZone = 0
+                end
+            end
+        end
     end
 
     if showHUDVal ~= state.lastSentHUD.visible or
@@ -117,7 +143,8 @@ local function updateHUDState(dt)
        mountedVal ~= state.lastSentHUD.mounted or
        speedVal ~= state.lastSentHUD.speed or
        rpmPercent ~= state.lastSentHUD.rpm or
-       rawRPM ~= state.lastSentHUD.rpmRaw then
+       rawRPM ~= state.lastSentHUD.rpmRaw or
+       rpmZone ~= state.lastSentHUD.rpmZone then
 
         state.lastSentHUD.visible = showHUDVal
         state.lastSentHUD.mode = modeVal
@@ -134,6 +161,7 @@ local function updateHUDState(dt)
         state.lastSentHUD.speed = speedVal
         state.lastSentHUD.rpm = rpmPercent
         state.lastSentHUD.rpmRaw = rawRPM
+        state.lastSentHUD.rpmZone = rpmZone
 
         setHUDFact("itc_hud_visible", showHUDVal)
         setHUDFact("itc_hud_mounted", mountedVal)
@@ -150,6 +178,7 @@ local function updateHUDState(dt)
         setHUDFact("itc_hud_speed", speedVal)
         setHUDFact("itc_hud_rpm", rpmPercent)
         setHUDFact("itc_hud_rpm_raw", rawRPM)
+        setHUDFact("itc_hud_rpm_zone", rpmZone)
 
         local uiSys = Game.GetUISystem()
         if uiSys then
@@ -178,6 +207,7 @@ local function forceHideHUD()
     setHUDFact("itc_hud_speed", 0)
     setHUDFact("itc_hud_rpm", 0)
     setHUDFact("itc_hud_rpm_raw", 0)
+    setHUDFact("itc_hud_rpm_zone", 1)
     setHUDFact("itc_hud_pos_x", 80)
     setHUDFact("itc_hud_pos_y", 82)
 

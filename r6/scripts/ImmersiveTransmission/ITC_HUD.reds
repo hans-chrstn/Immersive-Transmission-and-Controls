@@ -166,7 +166,7 @@ public class ITC_HUDComponent extends inkComponent {
     return canvas;
   }
 
-  public func Update(vis: Int32, mounted: Int32, mode: Int32, gear: Int32, diff: Int32, brake: Int32, clutch: Int32, footBrake: Int32, cc: Int32, engine: Int32, speed: Int32, rpmPercent: Int32, rpmRaw: Int32, posX: Int32, posY: Int32) {
+  public func Update(vis: Int32, mounted: Int32, mode: Int32, gear: Int32, diff: Int32, brake: Int32, clutch: Int32, footBrake: Int32, cc: Int32, engine: Int32, speed: Int32, rpmPercent: Int32, rpmRaw: Int32, rpmZone: Int32, posX: Int32, posY: Int32) {
     let canvas = this.GetRootWidget();
     if !IsDefined(canvas) {
       LogChannel(n"DEBUG", "ITC HUD: Update() - root canvas widget is null!");
@@ -237,12 +237,14 @@ public class ITC_HUDComponent extends inkComponent {
 
     
     let barColor: HDRColor;
-    if rpmPercent >= 85 {
+    if rpmZone == 3 {
       barColor = this.GetColorRed();
-    } else if rpmPercent >= 60 {
+    } else if rpmZone == 2 {
+      barColor = this.GetColorGreen();
+    } else if rpmZone == 1 {
       barColor = this.GetColorYellow();
     } else {
-      barColor = this.GetColorBlue();
+      barColor = this.GetColorViolet();
     }
     this.rpmBarFill.SetTintColor(barColor);
     this.rpmText.SetText(IntToString(rpmRaw) + " RPM");
@@ -313,6 +315,10 @@ public class ITC_HUDComponent extends inkComponent {
   }
   private func GetColorGreen() -> HDRColor {
     let c: HDRColor; c.Red = 1.0; c.Green = 0.5; c.Blue = 0.0; c.Alpha = 1.0;
+    return c;
+  }
+  private func GetColorViolet() -> HDRColor {
+    let c: HDRColor; c.Red = 1.0; c.Green = 0.0; c.Blue = 0.6; c.Alpha = 1.0;
     return c;
   }
   private func GetColorDim() -> HDRColor {
@@ -390,15 +396,14 @@ public class ITC_HUD extends IScriptable {
     let speed: Int32 = qs.GetFact(n"itc_hud_speed");
     let rpmPercent: Int32 = qs.GetFact(n"itc_hud_rpm");
     let rpmRaw: Int32 = qs.GetFact(n"itc_hud_rpm_raw");
+    let rpmZone: Int32 = qs.GetFact(n"itc_hud_rpm_zone");
     let posX: Int32 = qs.GetFact(n"itc_hud_pos_x");
     let posY: Int32 = qs.GetFact(n"itc_hud_pos_y");
 
     if posX <= 0 { posX = 80; }
     if posY <= 0 { posY = 82; }
 
-    LogChannel(n"DEBUG", "ITC HUD: Refresh() - calling Update with facts: vis=" + IntToString(vis) + " mounted=" + IntToString(mounted) + " mode=" + IntToString(mode) + " gear=" + IntToString(gear) + " engine=" + IntToString(engine));
-
-    this.comp.Update(vis, mounted, mode, gear, diff, brake, clutch, footBrake, cc, engine, speed, rpmPercent, rpmRaw, posX, posY);
+    this.comp.Update(vis, mounted, mode, gear, diff, brake, clutch, footBrake, cc, engine, speed, rpmPercent, rpmRaw, rpmZone, posX, posY);
   }
 }
 

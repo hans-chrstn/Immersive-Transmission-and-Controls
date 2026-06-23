@@ -51,6 +51,7 @@ local state = {
         speed = -1,
         rpm = -1,
         rpmRaw = -1,
+        rpmZone = -1,
     },
 }
 return state

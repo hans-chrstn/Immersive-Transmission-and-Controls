@@ -5,6 +5,7 @@ local vehicleManager = require("vehicle_manager")
 local hudInterface = require("hud_interface")
 local gearbox = require("gearbox")
 local clutch = require("clutch")
+local engine = require("engine")
 local drivetrain = require("drivetrain")
 local speedLimiter = require("speed_limiter")
 local inputHandler = require("input_handler")
@@ -177,6 +178,16 @@ registerInput("ITC_Boost", "Full Throttle / Boost Modifier", function(isDown)
     state.inputs.fullThrottle = isDown
 end)
 
+registerInput("ITC_RestartEngine", "Restart Engine", function(isDown)
+    if not state.vehicle.isMounted then return end
+    if Engine and Engine.GetState().inMenu then return end
+    if isDown and state.engine.isStalled then
+        if state.clutch.isPressed or state.gearbox.current == "N" then
+            engine.restart()
+        end
+    end
+end)
+
 registerForEvent("onInit", function()
     Engine = GetMod("0-Engine")
     nativeSettings = GetMod("nativeSettings")
@@ -284,6 +295,11 @@ registerForEvent("onInit", function()
         nativeSettings.addSwitch("/ITC", "Automatic Manual Override", "Allows manual shifting while in Auto mode, creating a temporary gear override.",
             settings.manualOverrideOnAuto, true, function(stateVal)
                 settings.manualOverrideOnAuto = stateVal
+                settings.save()
+            end)
+        nativeSettings.addSwitch("/ITC", "Enable Engine Stall", "Engine stalls when clutch engaged without throttle in gear.",
+            settings.stallEnabled, true, function(stateVal)
+                settings.stallEnabled = stateVal
                 settings.save()
             end)
         nativeSettings.addSwitch("/ITC", "Locked Differential (Drift Mode)", "Forces drive wheels to spin at the same speed, making drifting easier. Can toggle while driving via keybind.",
