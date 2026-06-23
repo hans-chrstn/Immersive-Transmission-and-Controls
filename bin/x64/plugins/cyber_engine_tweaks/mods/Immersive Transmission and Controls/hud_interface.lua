@@ -10,6 +10,7 @@ local function setHUDFact(name, value)
 end
 
 local hudRefreshTimer = 0.0
+local zoneLogTimer = 0.0
 local HUD_THROTTLE_SECS = 0.25
 
 
@@ -124,6 +125,11 @@ local function updateHUDState(dt)
                     rpmZone = 1
                 else
                     rpmZone = 0
+                end
+                zoneLogTimer = zoneLogTimer + 0.25
+                if zoneLogTimer >= 1.0 then
+                    zoneLogTimer = 0.0
+                    logger.logDebug(string.format("[HUD] zone=%d gear=%d speed=%.1f min=%.1f normal=%.1f redline=%.1f", rpmZone, gearIdx, s * 3.6, minSpd * 3.6, normalMax * 3.6, redlineMin * 3.6))
                 end
             end
         end

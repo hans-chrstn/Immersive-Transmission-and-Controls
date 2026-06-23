@@ -238,17 +238,16 @@ public class ITC_HUDComponent extends inkComponent {
     
     let barColor: HDRColor;
     if rpmZone == 3 {
-      barColor = this.GetColorRed();
+      barColor = new HDRColor(1.1761, 0.3809, 0.3476, 1.0);
     } else if rpmZone == 2 {
-      barColor = this.GetColorGreen();
+      barColor = new HDRColor(0.1137, 0.9294, 0.5137, 1.0);
     } else if rpmZone == 1 {
-      barColor = this.GetColorYellow();
+      barColor = new HDRColor(1.1192, 0.8441, 0.2565, 1.0);
     } else {
-      barColor = this.GetColorViolet();
+      barColor = new HDRColor(0.6157, 0.1686, 0.9608, 1.0);
     }
     this.rpmBarFill.SetTintColor(barColor);
     this.rpmText.SetText(IntToString(rpmRaw) + " RPM");
-    this.rpmText.SetTintColor(barColor);
 
     
     if brake == 1 {
@@ -294,36 +293,25 @@ public class ITC_HUDComponent extends inkComponent {
   }
 
   private func GetColorBlue() -> HDRColor {
-    let c: HDRColor; c.Red = 1.0; c.Green = 0.45; c.Blue = 0.1; c.Alpha = 1.0;
-    return c;
+    return new HDRColor(0.3686, 0.9647, 1.0, 1.0);
   }
   private func GetColorYellow() -> HDRColor {
-    let c: HDRColor; c.Red = 1.0; c.Green = 0.2; c.Blue = 0.2; c.Alpha = 1.0;
-    return c;
+    return new HDRColor(1.1192, 0.8441, 0.2565, 1.0);
   }
   private func GetColorOrange() -> HDRColor {
-    let c: HDRColor; c.Red = 1.0; c.Green = 0.35; c.Blue = 0.05; c.Alpha = 1.0;
-    return c;
+    return new HDRColor(1.28, 0.32, 0.0, 1.0);
   }
   private func GetColorRed() -> HDRColor {
-    let c: HDRColor; c.Red = 1.0; c.Green = 0.0; c.Blue = 0.0; c.Alpha = 1.0;
-    return c;
+    return new HDRColor(1.1761, 0.3809, 0.3476, 1.0);
   }
   private func GetColorGrey() -> HDRColor {
-    let c: HDRColor; c.Red = 0.4; c.Green = 0.15; c.Blue = 0.05; c.Alpha = 0.5;
-    return c;
+    return new HDRColor(0.4588, 0.4588, 0.4588, 1.0);
   }
   private func GetColorGreen() -> HDRColor {
-    let c: HDRColor; c.Red = 1.0; c.Green = 0.5; c.Blue = 0.0; c.Alpha = 1.0;
-    return c;
-  }
-  private func GetColorViolet() -> HDRColor {
-    let c: HDRColor; c.Red = 1.0; c.Green = 0.0; c.Blue = 0.6; c.Alpha = 1.0;
-    return c;
+    return new HDRColor(0.1137, 0.9294, 0.5137, 1.0);
   }
   private func GetColorDim() -> HDRColor {
-    let c: HDRColor; c.Red = 0.3; c.Green = 0.05; c.Blue = 0.02; c.Alpha = 0.5;
-    return c;
+    return new HDRColor(0.2627, 0.0863, 0.0941, 0.5);
   }
 }
 
