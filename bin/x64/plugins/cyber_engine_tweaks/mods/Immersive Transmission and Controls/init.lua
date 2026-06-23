@@ -6,6 +6,7 @@ local hudInterface = require("hud_interface")
 local gearbox = require("gearbox")
 local clutch = require("clutch")
 local drivetrain = require("drivetrain")
+local speedLimiter = require("speed_limiter")
 local inputHandler = require("input_handler")
 
 local Engine = nil
@@ -358,6 +359,7 @@ registerForEvent("onInit", function()
                     logger.logDebug("[WARN] gearbox module is nil – skipping updateGearbox")
                 end
                 drivetrain.applyDrivetrainForces(dt)
+                speedLimiter.calculateLimiterForce(dt)
                 hudInterface.updateHUDState(dt)
             end)
             if not ok then
@@ -388,6 +390,7 @@ registerForEvent("onUpdate", function(dt)
                 end
                 gearbox.updateGearbox(dt)
                 drivetrain.applyDrivetrainForces(dt)
+                speedLimiter.calculateLimiterForce(dt)
                 hudInterface.updateHUDState(dt)
             end)
             if not ok then

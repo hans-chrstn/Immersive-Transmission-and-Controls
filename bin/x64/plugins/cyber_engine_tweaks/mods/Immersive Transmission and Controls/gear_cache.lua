@@ -1,11 +1,11 @@
 local baseLimits = {
-    [0] = { normalMin = 0.0, normalMax = 20.0, redlineMin = 20.0, redlineMax = 40.0 },
-    [1] = { normalMin = 0.0, normalMax = 25.0, redlineMin = 50.0, redlineMax = 65.0 },
-    [2] = { normalMin = 25.0, normalMax = 50.0, redlineMin = 90.0, redlineMax = 110.0 },
-    [3] = { normalMin = 50.0, normalMax = 80.0, redlineMin = 140.0, redlineMax = 160.0 },
-    [4] = { normalMin = 80.0, normalMax = 110.0, redlineMin = 190.0, redlineMax = 210.0 },
-    [5] = { normalMin = 110.0, normalMax = 140.0, redlineMin = 240.0, redlineMax = 260.0 },
-    [6] = { normalMin = 140.0, normalMax = 180.0, redlineMin = 260.0, redlineMax = 320.0 },
+    [0] = { normalMin = 0.0, normalMax = 20.0, redlineMin = 20.0, redlineMax = 40.0 }, -- reverse
+    [1] = { normalMin = 0.0, normalMax = 25.0, redlineMin = 50.0, redlineMax = 65.0 }, -- first gear
+    [2] = { normalMin = 25.0, normalMax = 50.0, redlineMin = 90.0, redlineMax = 110.0 }, -- second gear
+    [3] = { normalMin = 50.0, normalMax = 80.0, redlineMin = 140.0, redlineMax = 160.0 }, -- third gear
+    [4] = { normalMin = 80.0, normalMax = 110.0, redlineMin = 190.0, redlineMax = 210.0 }, -- fourth gear
+    [5] = { normalMin = 110.0, normalMax = 140.0, redlineMin = 240.0, redlineMax = 260.0 }, -- fifth gear
+    [6] = { normalMin = 140.0, normalMax = 180.0, redlineMin = 260.0, redlineMax = 320.0 }, -- sixth gear
 }
 
 local function getGears(activeVehicle, gearSpeedScale)
