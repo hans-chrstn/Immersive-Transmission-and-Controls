@@ -1,5 +1,5 @@
 local state = require("state")
-local settings = require("settings.init")
+local settings = require("settings")
 
 local function isThrottlePressed()
     if state.gearbox.current == "R" then

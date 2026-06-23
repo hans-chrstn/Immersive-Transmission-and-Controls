@@ -1,5 +1,5 @@
 local state = require("state")
-local settings = require("settings.init")
+local settings = require("settings")
 local logger = require("logger")
 local hudInterface = require("hud_interface")
 

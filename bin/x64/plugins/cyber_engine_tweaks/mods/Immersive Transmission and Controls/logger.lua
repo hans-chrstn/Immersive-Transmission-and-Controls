@@ -1,4 +1,4 @@
-local settings = require("settings.init")
+local settings = require("settings")
 local function logDebug(msg)
     if settings.debugMode then
         print("[ITC][DEBUG] " .. tostring(msg))
