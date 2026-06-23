@@ -7,12 +7,12 @@ public class ITC_HUDComponent extends inkComponent {
   private let gearText: ref<inkText>;
   private let speedText: ref<inkText>;
   
-  // RPM Elements
+  
   private let rpmBarBg: ref<inkRectangle>;
   private let rpmBarFill: ref<inkRectangle>;
   private let rpmText: ref<inkText>;
 
-  // Status Badges
+  
   private let engText: ref<inkText>;
   private let hbText: ref<inkText>;
   private let ccText: ref<inkText>;
@@ -26,7 +26,7 @@ public class ITC_HUDComponent extends inkComponent {
     canvas.SetSize(new Vector2(280.0, 160.0));
     canvas.SetInteractive(false);
 
-    // 1. Native Cyber Panel Background
+    
     let bg = new inkImage();
     bg.SetName(n"ITC_HUD_Bg");
     bg.SetSize(new Vector2(280.0, 160.0));
@@ -37,7 +37,7 @@ public class ITC_HUDComponent extends inkComponent {
     bg.Reparent(canvas);
     this.frameBg = bg;
 
-    // 2. Native Cyber Panel Border Outline
+    
     let border = new inkImage();
     border.SetName(n"ITC_HUD_Border");
     border.SetSize(new Vector2(280.0, 160.0));
@@ -47,7 +47,7 @@ public class ITC_HUDComponent extends inkComponent {
     border.Reparent(canvas);
     this.frameBorder = border;
 
-    // 3. Transmission Mode (Top Left)
+    
     let modeTxt = new inkText();
     modeTxt.SetName(n"ITC_HUD_Mode");
     modeTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
@@ -57,7 +57,7 @@ public class ITC_HUDComponent extends inkComponent {
     modeTxt.Reparent(canvas);
     this.modeText = modeTxt;
 
-    // 4. Engine Status (Top Right)
+    
     let engTxt = new inkText();
     engTxt.SetName(n"ITC_HUD_Eng");
     engTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
@@ -67,7 +67,7 @@ public class ITC_HUDComponent extends inkComponent {
     engTxt.Reparent(canvas);
     this.engText = engTxt;
 
-    // 5. Gear Indicator (Center Left)
+    
     let gearTxt = new inkText();
     gearTxt.SetName(n"ITC_HUD_Gear");
     gearTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
@@ -77,7 +77,7 @@ public class ITC_HUDComponent extends inkComponent {
     gearTxt.Reparent(canvas);
     this.gearText = gearTxt;
 
-    // 6. Speedometer Value (Center)
+    
     let spdTxt = new inkText();
     spdTxt.SetName(n"ITC_HUD_Speed");
     spdTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
@@ -87,7 +87,7 @@ public class ITC_HUDComponent extends inkComponent {
     spdTxt.Reparent(canvas);
     this.speedText = spdTxt;
 
-    // 7. RPM Bar Background Track (Lower Center)
+    
     let rpmBg = new inkRectangle();
     rpmBg.SetName(n"ITC_HUD_RPM_Bg");
     rpmBg.SetSize(new Vector2(180.0, 6.0));
@@ -97,16 +97,16 @@ public class ITC_HUDComponent extends inkComponent {
     rpmBg.Reparent(canvas);
     this.rpmBarBg = rpmBg;
 
-    // 8. RPM Bar Filling (Lower Center)
+    
     let rpmFill = new inkRectangle();
     rpmFill.SetName(n"ITC_HUD_RPM_Fill");
-    rpmFill.SetSize(new Vector2(0.0, 6.0)); // Initialized at 0 width
+    rpmFill.SetSize(new Vector2(0.0, 6.0)); 
     rpmFill.SetTranslation(new Vector2(20.0, 92.0));
     rpmFill.SetTintColor(this.GetColorBlue());
     rpmFill.Reparent(canvas);
     this.rpmBarFill = rpmFill;
 
-    // 9. RPM Text Value (Lower Right)
+    
     let rpmTxt = new inkText();
     rpmTxt.SetName(n"ITC_HUD_RPM_Val");
     rpmTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
@@ -116,7 +116,7 @@ public class ITC_HUDComponent extends inkComponent {
     rpmTxt.Reparent(canvas);
     this.rpmText = rpmTxt;
 
-    // 10. Status Badges Row (Bottom)
+    
     let hbTxt = new inkText();
     hbTxt.SetName(n"ITC_HUD_HB");
     hbTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
@@ -144,7 +144,7 @@ public class ITC_HUDComponent extends inkComponent {
     diffTxt.Reparent(canvas);
     this.diffText = diffTxt;
 
-    // Debug Foot Pedal Indicators
+    
     let clTxt = new inkText();
     clTxt.SetName(n"ITC_HUD_CL");
     clTxt.SetFontFamily("base\\gameplay\\gui\\fonts\\raj\\raj.inkfontfamily");
@@ -178,10 +178,10 @@ public class ITC_HUDComponent extends inkComponent {
 
     let fracX: Float = Cast<Float>(posX) / 100.0;
     let fracY: Float = Cast<Float>(posY) / 100.0;
-    // Map to native 1920x1080 virtual window coordinate system
+    
     canvas.SetTranslation(new Vector2(1920.0 * fracX, 1080.0 * fracY));
 
-    // Transmission Mode
+    
     let modeTxtStr: String = "AUTOMATIC";
     let modeColor: HDRColor = this.GetColorBlue();
     if mode == 1 {
@@ -197,7 +197,7 @@ public class ITC_HUDComponent extends inkComponent {
     this.modeText.SetText(modeTxtStr);
     this.modeText.SetTintColor(modeColor);
 
-    // Engine Status
+    
     if engine == 1 {
       this.engText.SetText("ENG: ON");
       this.engText.SetTintColor(this.GetColorGreen());
@@ -206,7 +206,7 @@ public class ITC_HUDComponent extends inkComponent {
       this.engText.SetTintColor(this.GetColorDim());
     }
 
-    // Gear display
+    
     let gearStr: String = "";
     let gearColor: HDRColor = this.GetColorYellow();
     if gear == 0 {
@@ -225,17 +225,17 @@ public class ITC_HUDComponent extends inkComponent {
     this.gearText.SetText(gearStr);
     this.gearText.SetTintColor(gearColor);
 
-    // Speed display
+    
     this.speedText.SetText(IntToString(speed) + " km/h");
     this.speedText.SetTintColor(this.GetColorBlue());
 
-    // RPM Bar and text update
+    
     let fillWidth: Float = (Cast<Float>(rpmPercent) / 100.0) * 180.0;
     if fillWidth < 0.0 { fillWidth = 0.0; }
     if fillWidth > 180.0 { fillWidth = 180.0; }
     this.rpmBarFill.SetSize(new Vector2(fillWidth, 6.0));
 
-    // Shift RPM colors
+    
     let barColor: HDRColor;
     if rpmPercent >= 85 {
       barColor = this.GetColorRed();
@@ -248,7 +248,7 @@ public class ITC_HUDComponent extends inkComponent {
     this.rpmText.SetText(IntToString(rpmRaw) + " RPM");
     this.rpmText.SetTintColor(barColor);
 
-    // Status Badges
+    
     if brake == 1 {
       this.hbText.SetText("HB: ON");
       this.hbText.SetTintColor(this.GetColorRed());
@@ -273,7 +273,7 @@ public class ITC_HUDComponent extends inkComponent {
       this.diffText.SetTintColor(this.GetColorDim());
     }
 
-    // Pedals
+    
     if clutch == 1 {
       this.clText.SetText("CL: ON");
       this.clText.SetTintColor(this.GetColorYellow());
@@ -292,31 +292,31 @@ public class ITC_HUDComponent extends inkComponent {
   }
 
   private func GetColorBlue() -> HDRColor {
-    let c: HDRColor; c.Red = 0.35; c.Green = 0.75; c.Blue = 1.0; c.Alpha = 1.0;
+    let c: HDRColor; c.Red = 1.0; c.Green = 0.45; c.Blue = 0.1; c.Alpha = 1.0;
     return c;
   }
   private func GetColorYellow() -> HDRColor {
-    let c: HDRColor; c.Red = 1.0; c.Green = 0.85; c.Blue = 0.15; c.Alpha = 1.0;
-    return c;
-  }
-  private func GetColorOrange() -> HDRColor {
-    let c: HDRColor; c.Red = 1.0; c.Green = 0.55; c.Blue = 0.0; c.Alpha = 1.0;
-    return c;
-  }
-  private func GetColorRed() -> HDRColor {
     let c: HDRColor; c.Red = 1.0; c.Green = 0.2; c.Blue = 0.2; c.Alpha = 1.0;
     return c;
   }
+  private func GetColorOrange() -> HDRColor {
+    let c: HDRColor; c.Red = 1.0; c.Green = 0.35; c.Blue = 0.05; c.Alpha = 1.0;
+    return c;
+  }
+  private func GetColorRed() -> HDRColor {
+    let c: HDRColor; c.Red = 1.0; c.Green = 0.0; c.Blue = 0.0; c.Alpha = 1.0;
+    return c;
+  }
   private func GetColorGrey() -> HDRColor {
-    let c: HDRColor; c.Red = 0.6; c.Green = 0.6; c.Blue = 0.6; c.Alpha = 1.0;
+    let c: HDRColor; c.Red = 0.4; c.Green = 0.15; c.Blue = 0.05; c.Alpha = 0.5;
     return c;
   }
   private func GetColorGreen() -> HDRColor {
-    let c: HDRColor; c.Red = 0.2; c.Green = 0.9; c.Blue = 0.2; c.Alpha = 1.0;
+    let c: HDRColor; c.Red = 1.0; c.Green = 0.5; c.Blue = 0.0; c.Alpha = 1.0;
     return c;
   }
   private func GetColorDim() -> HDRColor {
-    let c: HDRColor; c.Red = 0.25; c.Green = 0.25; c.Blue = 0.28; c.Alpha = 0.5;
+    let c: HDRColor; c.Red = 0.3; c.Green = 0.05; c.Blue = 0.02; c.Alpha = 0.5;
     return c;
   }
 }
@@ -361,6 +361,10 @@ public class ITC_HUD extends IScriptable {
   }
 
   public func Refresh() -> Void {
+    this.InternalRefresh();
+  }
+
+  private func InternalRefresh() -> Void {
     this.Ensure();
     if !IsDefined(this.comp) {
       LogChannel(n"DEBUG", "ITC HUD: Refresh() - comp is null, returning early");
@@ -389,7 +393,7 @@ public class ITC_HUD extends IScriptable {
     let posX: Int32 = qs.GetFact(n"itc_hud_pos_x");
     let posY: Int32 = qs.GetFact(n"itc_hud_pos_y");
 
-    if posX <= 0 { posX = 85; }
+    if posX <= 0 { posX = 80; }
     if posY <= 0 { posY = 82; }
 
     LogChannel(n"DEBUG", "ITC HUD: Refresh() - calling Update with facts: vis=" + IntToString(vis) + " mounted=" + IntToString(mounted) + " mode=" + IntToString(mode) + " gear=" + IntToString(gear) + " engine=" + IntToString(engine));

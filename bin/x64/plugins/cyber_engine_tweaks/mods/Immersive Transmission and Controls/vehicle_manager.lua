@@ -1,5 +1,5 @@
 local state = require("state")
-local settings = require("settings")
+local settings = require("settings.init")
 local logger = require("logger")
 local gearCache = require("gear_cache")
 
@@ -10,14 +10,20 @@ local function getActiveVehicle()
     if mountedVehicle:IsA('vehicleAVBaseObject') or mountedVehicle:IsA('vehicleTankBaseObject') then
         return nil
     end
+
+    if mountedVehicle:IsA('vehicleBikeBaseObject') then
+        state.vehicle.isBike = true
+    else
+        state.vehicle.isBike = false
+    end
     return mountedVehicle
 end
 
 local function isEngineOn()
-    if not state.activeVehicle then return false end
+    if not state.vehicle.active then return false end
     if settings.evsIntegration then
         local success, result = pcall(function()
-            local comp = state.activeVehicle:GetVehicleComponent()
+            local comp = state.vehicle.active:GetVehicleComponent()
             if comp then
                 local ps = comp:GetPS()
                 if ps then
@@ -30,20 +36,21 @@ local function isEngineOn()
             return result
         end
     end
-    local success, result = pcall(function() return state.activeVehicle:IsEngineTurnedOn() end)
+    local success, result = pcall(function() return state.vehicle.active:IsEngineTurnedOn() end)
     if success then
         return result
     end
-    local controllerPS = state.activeVehicle:GetVehicleComponent():GetVehicleControllerPS()
+    local controllerPS = state.vehicle.active:GetVehicleComponent():GetVehicleControllerPS()
     if not controllerPS then return false end
     local engineState = controllerPS:GetState()
     return engineState ~= vehicleEState.Default
 end
 
 local function cacheVehicleGearData()
-    if not state.activeVehicle then return end
-    state.vehicleGears, state.vehicleMass = gearCache.getGears(state.activeVehicle, settings.gearSpeedScale)
-    logger.logDebug(string.format("Cached data for vehicle. Mass=%.1f kg, GearsCount=%d, SpeedScale=%.2f", state.vehicleMass, #state.vehicleGears, settings.gearSpeedScale))
+    if not state.vehicle.active then return end
+    state.vehicle.gears, state.vehicle.mass = gearCache.getGears(state.vehicle.active, settings.gearSpeedScale)
+    state.vehicle.isBike = state.vehicle.active:IsA('vehicleBikeBaseObject')
+    logger.logDebug(string.format("Cached data for vehicle. Mass=%.1f kg, GearsCount=%d, SpeedScale=%.2f", state.vehicle.mass, #state.vehicle.gears, settings.gearSpeedScale))
 end
 
 return {

@@ -1,5 +1,5 @@
 local state = require("state")
-local settings = require("settings")
+local settings = require("settings.init")
 local logger = require("logger")
 local vehicleManager = require("vehicle_manager")
 
@@ -9,45 +9,62 @@ local function setHUDFact(name, value)
     end)
 end
 
-local function updateHUDState()
-    local showHUD = settings.showHUD and state.isMounted and not state.isOverlayOpen
+local hudRefreshTimer = 0.0
+local HUD_THROTTLE_SECS = 0.25
+
+
+if state.lastSentHUD.visible == -1 then
+    hudRefreshTimer = HUD_THROTTLE_SECS + 1.0
+end
+
+local function updateHUDState(dt)
+
+    dt = dt or 0.083
+    hudRefreshTimer = hudRefreshTimer + dt
+
+    if hudRefreshTimer < HUD_THROTTLE_SECS and state.vehicle.isMounted then
+        return
+    end
+    hudRefreshTimer = 0.0
+
+    local showHUD = settings.showHUD and state.vehicle.isMounted and not state.isOverlayOpen
     local showHUDVal = showHUD and 1 or 0
-    local mountedVal = state.isMounted and 1 or 0
+    local mountedVal = state.vehicle.isMounted and 1 or 0
     local ccVal = settings.cruiseControlEnabled and 1 or 0
     local isEngineOn = false
-    if state.isMounted and state.activeVehicle then
-        isEngineOn = vehicleManager.isEngineOn() and not state.isEngineStalled
+    if state.vehicle.isMounted and state.vehicle.active then
+        isEngineOn = vehicleManager.isEngineOn() and not state.engine.isStalled
     end
     local engineVal = isEngineOn and 1 or 0
     local modeVal = 0
     if settings.transmissionMode == "Manual" then
         modeVal = 1
-    elseif state.isManualOverride then
+    elseif state.manualOverride.active then
         modeVal = 2
     end
     local gearVal = 1
     local currentGear = 1
-    if state.activeVehicleBB then
-        currentGear = state.activeVehicleBB:GetInt(GetAllBlackboardDefs().Vehicle.GearValue)
+    if state.vehicle.bb then
+        currentGear = state.vehicle.bb:GetInt(GetAllBlackboardDefs().Vehicle.GearValue)
     end
     if settings.transmissionMode == "Manual" then
-        if state.currentGearState == "R" then
+        if state.gearbox.current == "R" then
             gearVal = 0
-        elseif state.currentGearState == "N" then
+        elseif state.gearbox.current == "N" then
             gearVal = 1
         else
-            local gearNum = tonumber(state.currentGearState) or 1
+            local gearNum = tonumber(state.gearbox.current) or 1
             gearVal = gearNum + 1
         end
     else
-        if state.currentGearState == "N" then
+        if state.gearbox.current == "N" then
             gearVal = 1
-        elseif state.currentGearState == "R" or currentGear == 0 then
+        elseif state.gearbox.current == "R" or currentGear == 0 then
             gearVal = 0
-        elseif state.currentGearState == "D" then
+        elseif state.gearbox.current == "D" then
             local displayGear = currentGear
             if not displayGear or displayGear <= 0 then displayGear = 1 end
-            if state.isManualOverride then
+            if state.manualOverride.active then
                 gearVal = 200 + displayGear
             else
                 gearVal = 100 + displayGear
@@ -56,28 +73,32 @@ local function updateHUDState()
     end
     local diffLocked = not GameOptions.GetBool("Vehicle", "UseDifferential")
     local diffLockedVal = diffLocked and 1 or 0
-    local isHandbraking = state.isHandbrakeToggled or false
-    if not isHandbraking and state.activeVehicleBB then
-        isHandbraking = state.activeVehicleBB:GetInt(GetAllBlackboardDefs().Vehicle.IsHandbraking) == 1
+    local isHandbraking = state.inputs.handbrakeToggled or false
+    if not isHandbraking and state.vehicle.bb then
+        isHandbraking = state.vehicle.bb:GetInt(GetAllBlackboardDefs().Vehicle.IsHandbraking) == 1
     end
     local handbrakeVal = isHandbraking and 1 or 0
-    local clutchVal = state.isClutchPressed and 1 or 0
-    local footBrakeVal = state.isDeceleratePressed and 1 or 0
-    local posXVal = math.floor((settings.hudX or 0.85) * 100)
+    local clutchVal = state.clutch.isPressed and 1 or 0
+    local footBrakeVal = state.inputs.footBrake and 1 or 0
+    local posXVal = math.floor((settings.hudX or 0.80) * 100)
     local posYVal = math.floor((settings.hudY or 0.82) * 100)
 
-    -- Calculate Speed & RPM
     local speedVal = 0
-    if state.activeVehicle then
-        local velocity = state.activeVehicle:GetLinearVelocity()
-        speedVal = math.floor(math.sqrt(velocity.x^2 + velocity.y^2 + velocity.z^2) * 3.6)
+    if state.vehicle.active then
+        local success, vel = pcall(function() return state.vehicle.active:GetLinearVelocity() end)
+        if success and vel then
+            local mps = math.sqrt((vel.x or 0)^2 + (vel.y or 0)^2 + (vel.z or 0)^2)
+            speedVal = math.floor(mps * 3.6 + 0.5)
+        else
+            speedVal = math.floor(state.vehicle.active:GetCurrentSpeed() * 3.6)
+        end
     end
 
     local rawRPM = 0
     local rpmPercent = 0
-    if state.activeVehicleBB then
-        rawRPM = math.floor(state.activeVehicleBB:GetFloat(GetAllBlackboardDefs().Vehicle.RPMValue))
-        local maxRPM = state.activeVehicleBB:GetFloat(GetAllBlackboardDefs().Vehicle.RPMMax)
+    if state.vehicle.bb then
+        rawRPM = math.floor(state.vehicle.bb:GetFloat(GetAllBlackboardDefs().Vehicle.RPMValue))
+        local maxRPM = state.vehicle.bb:GetFloat(GetAllBlackboardDefs().Vehicle.RPMMax)
         if not maxRPM or maxRPM <= 0 then maxRPM = 8000.0 end
         rpmPercent = math.floor((rawRPM / maxRPM) * 100)
     end
@@ -140,12 +161,41 @@ local function updateHUDState()
             end
         end
 
-        logger.logDebug(string.format("HUD Fact Update: Vis=%d, Mounted=%d, Mode=%d, Gear=%d, Diff=%d, PB=%d, Clutch=%d, Brake=%d, CC=%d, Engine=%d, Spd=%d, RPM=%d, X=%d, Y=%d", 
-            showHUDVal, mountedVal, modeVal, gearVal, diffLockedVal, handbrakeVal, clutchVal, footBrakeVal, ccVal, engineVal, speedVal, rawRPM, posXVal, posYVal))
     end
+end
+
+local function forceHideHUD()
+    setHUDFact("itc_hud_visible", 0)
+    setHUDFact("itc_hud_mounted", 0)
+    setHUDFact("itc_hud_mode", 0)
+    setHUDFact("itc_hud_gear", 1)
+    setHUDFact("itc_hud_diff", 0)
+    setHUDFact("itc_hud_handbrake", 0)
+    setHUDFact("itc_hud_clutch", 0)
+    setHUDFact("itc_hud_brake", 0)
+    setHUDFact("itc_hud_cc", 0)
+    setHUDFact("itc_hud_engine", 0)
+    setHUDFact("itc_hud_speed", 0)
+    setHUDFact("itc_hud_rpm", 0)
+    setHUDFact("itc_hud_rpm_raw", 0)
+    setHUDFact("itc_hud_pos_x", 80)
+    setHUDFact("itc_hud_pos_y", 82)
+
+    local uiSys = Game.GetUISystem()
+    if uiSys then
+        local itcHUD = uiSys.itcHUD
+        if itcHUD then
+            pcall(function()
+                itcHUD:Refresh()
+            end)
+        end
+    end
+
+    logger.logDebug("[HUD] Forced HUD hidden.")
 end
 
 return {
     setHUDFact = setHUDFact,
-    updateHUDState = updateHUDState
+    updateHUDState = updateHUDState,
+    forceHideHUD = forceHideHUD
 }
