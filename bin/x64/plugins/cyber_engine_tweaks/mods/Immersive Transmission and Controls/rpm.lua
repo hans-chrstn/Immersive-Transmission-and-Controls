@@ -15,10 +15,18 @@ local TRANSITION_SPEED = 5.0
 local DT_DEFAULT = 0.083
 local DT_MAX = 0.2
 
+local TORQUE_CURVE = {
+    [0] = 0.3, [1] = 0.5, [2] = 0.7, [3] = 0.85,
+    [4] = 1.0, [5] = 1.0, [6] = 0.95, [7] = 0.85,
+    [8] = 0.7, [9] = 0.5, [10] = 0.3
+}
+
 local axleRatio = nil
 local tireDiameterInches = nil
 local calibrated = false
 local simulatedRPM = 0.0
+local storedRPM = 0.0
+local kickTimer = 0.0
 
 local function getTireDiameter()
     if tireDiameterInches then return tireDiameterInches end
@@ -99,13 +107,25 @@ local function getMax()
     return bb and bb:GetFloat(GetAllBlackboardDefs().Vehicle.RPMMax) or 8000
 end
 
+local function getTorqueMultiplier(rpmVal, maxRPM)
+    local pct = math.max(0, math.min(1, rpmVal / math.max(1, maxRPM)))
+    local idx = pct * 10
+    local loIdx = math.floor(idx)
+    local hiIdx = math.ceil(idx)
+    local loVal = TORQUE_CURVE[loIdx] or 0.3
+    local hiVal = TORQUE_CURVE[hiIdx] or 0.3
+    local frac = idx - loIdx
+    return loVal + (hiVal - loVal) * frac
+end
+
 local function getThrottleTarget()
     local throttle = state.inputs.accelerateVal or 0.0
     if state.gearbox.current == "R" then
         throttle = state.inputs.decelerateVal or 0.0
     end
     local maxRPM = getMax()
-    return IDLE_RPM + throttle * (maxRPM - IDLE_RPM)
+    local torqueMult = getTorqueMultiplier(simulatedRPM, maxRPM)
+    return IDLE_RPM + throttle * torqueMult * (maxRPM - IDLE_RPM)
 end
 
 local function get(dt)
@@ -122,12 +142,36 @@ local function get(dt)
         return bb and bb:GetFloat(GetAllBlackboardDefs().Vehicle.RPMValue) or 0
     end
 
+    if state.clutch.isPressed then
+        storedRPM = simulatedRPM
+    end
+
+    if kickTimer > 0.0 then
+        kickTimer = kickTimer - dt
+        if kickTimer < 0 then kickTimer = 0 end
+    end
+
     local coupling = getCoupling()
+    if kickTimer > 0.0 and coupling >= 0.5 then
+        coupling = 0.5
+    end
+
     local wheelRPM = computeWheelRPM()
     local throttleTarget = getThrottleTarget()
 
+    if coupling > 0.1 and storedRPM > 0 and kickTimer <= 0.0 then
+        local maxRPM = getMax()
+        local diffPct = (storedRPM - wheelRPM) / math.max(1, maxRPM)
+        if diffPct > 0.3 then
+            kickTimer = 0.3
+            logger.logDebug(string.format("[RPM] Clutch kick: stored=%.0f wheel=%.0f diff=%.1f%%", storedRPM, wheelRPM, diffPct * 100))
+        end
+    end
+
     local targetRPM
-    if coupling >= 1.0 then
+    if kickTimer > 0.0 then
+        targetRPM = storedRPM * (kickTimer / 0.3) + wheelRPM * (1.0 - kickTimer / 0.3)
+    elseif coupling >= 1.0 then
         targetRPM = wheelRPM
     else
         targetRPM = coupling * math.max(wheelRPM, throttleTarget) + (1.0 - coupling) * throttleTarget
@@ -145,10 +189,13 @@ local function reset()
     tireDiameterInches = nil
     calibrated = false
     simulatedRPM = 0.0
+    storedRPM = 0.0
+    kickTimer = 0.0
 end
 
 return {
     get = get,
     getMax = getMax,
-    reset = reset
+    reset = reset,
+    computeWheelRPM = computeWheelRPM
 }

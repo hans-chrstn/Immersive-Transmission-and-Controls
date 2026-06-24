@@ -2,6 +2,14 @@ local state = require("state")
 local settings = require("settings")
 local logger = require("logger")
 local vehicleManager = require("vehicle_manager")
+local utilities = require("utilities")
+
+local function refreshHUD(uiSys)
+    if not uiSys.itcHUD then
+        pcall(function() uiSys:ResurrectITCHUD() end)
+    end
+    pcall(function() uiSys.itcHUD:Refresh() end)
+end
 
 local function setHUDFact(name, value)
     pcall(function()
@@ -107,14 +115,7 @@ local function updateHUDState(dt)
             local ok, spd = pcall(function() return state.vehicle.active:GetCurrentSpeed() end)
             speedVal = ok and math.floor((spd or 0) * 3.6) or 0
         end
-        local gearIdx = nil
-        if settings.transmissionMode == "Manual" then
-            if state.gearbox.current == "R" then gearIdx = 0
-            elseif state.gearbox.current ~= "N" then gearIdx = tonumber(state.gearbox.current) end
-        elseif state.gearbox.current == "D" then
-            local nativeGear = state.vehicle.bb and state.vehicle.bb:GetInt(GetAllBlackboardDefs().Vehicle.GearValue) or 1
-            gearIdx = math.max(1, nativeGear)
-        end
+        local gearIdx = utilities.getGearIdx()
         if gearIdx then
             local gearRec = state.vehicle.gears[gearIdx]
             if gearRec then
@@ -192,14 +193,7 @@ local function updateHUDState(dt)
         setHUDFact("itc_hud_rpm_zone", rpmZone)
 
         local uiSys = Game.GetUISystem()
-        if uiSys then
-            local itcHUD = uiSys.itcHUD
-            if itcHUD then
-                pcall(function()
-                    itcHUD:Refresh()
-                end)
-            end
-        end
+        if uiSys then refreshHUD(uiSys) end
 
     end
 end
@@ -224,14 +218,7 @@ local function forceHideHUD()
     setHUDFact("itc_hud_pos_y", 82)
 
     local uiSys = Game.GetUISystem()
-    if uiSys then
-        local itcHUD = uiSys.itcHUD
-        if itcHUD then
-            pcall(function()
-                itcHUD:Refresh()
-            end)
-        end
-    end
+    if uiSys then refreshHUD(uiSys) end
 
     logger.logDebug("[HUD] Forced HUD hidden.")
 end
@@ -239,5 +226,6 @@ end
 return {
     setHUDFact = setHUDFact,
     updateHUDState = updateHUDState,
-    forceHideHUD = forceHideHUD
+    forceHideHUD = forceHideHUD,
+    refreshHUD = refreshHUD
 }

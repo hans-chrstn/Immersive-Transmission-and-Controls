@@ -17,6 +17,18 @@ local SYNC_SPEED_THRESHOLD = 1.0
 local Engine = nil
 local nativeSettings = nil
 
+local function inputAllowed()
+    return state.vehicle.isMounted and not state.isModDisabled
+end
+
+local function runUpdateLoop(dt)
+    pcall(function() clutch.updateClutch(dt) end)
+    pcall(function() gearbox.updateGearbox(dt) end)
+    pcall(function() drivetrain.applyDrivetrainForces(dt) end)
+    pcall(function() speedLimiter.calculateLimiterForce(dt) end)
+    pcall(function() hudInterface.updateHUDState(dt) end)
+end
+
 local function resetVehicleState()
     state.vehicle.active = nil
     state.vehicle.bb = nil
@@ -66,8 +78,7 @@ local function syncGearStateOnMount(vehicle, bb)
 end
 
 registerInput("ITC_ToggleCruiseControl", "Toggle Cruise Control Mode", function(isDown)
-    if not state.vehicle.isMounted then return end
-    if state.isModDisabled then return end
+    if not inputAllowed() then return end
     if Engine and Engine.GetState().inMenu then return end
     if isDown then
         settings.cruiseControlEnabled = not settings.cruiseControlEnabled
@@ -77,15 +88,13 @@ registerInput("ITC_ToggleCruiseControl", "Toggle Cruise Control Mode", function(
 end)
 
 registerInput("ITC_GearUp", "Gear Up / Shift Drive", function(isDown)
-    if not state.vehicle.isMounted then return end
-    if state.isModDisabled then return end
+    if not inputAllowed() then return end
     if Engine and Engine.GetState().inMenu then return end
     if isDown then gearbox.handleGearUp() end
 end)
 
 registerInput("ITC_GearDown", "Gear Down / Shift Reverse", function(isDown)
-    if not state.vehicle.isMounted then return end
-    if state.isModDisabled then return end
+    if not inputAllowed() then return end
     if Engine and Engine.GetState().inMenu then return end
     if isDown then gearbox.handleGearDown() end
 end)
@@ -115,8 +124,7 @@ registerInput("ITC_ToggleModActive", "Toggle ITC Mod Active (Enable/Disable)", f
 end)
 
 registerInput("ITC_ToggleTransmission", "Toggle Transmission Mode", function(isDown)
-    if not state.vehicle.isMounted then return end
-    if state.isModDisabled then return end
+    if not inputAllowed() then return end
     if Engine and Engine.GetState().inMenu then return end
     if isDown then
         if settings.transmissionMode == "Automatic" then
@@ -144,8 +152,7 @@ registerInput("ITC_ToggleTransmission", "Toggle Transmission Mode", function(isD
 end)
 
 registerInput("ITC_ToggleDifferential", "Toggle Differential Lock (Drift/Grip)", function(isDown)
-    if not state.vehicle.isMounted then return end
-    if state.isModDisabled then return end
+    if not inputAllowed() then return end
     if Engine and Engine.GetState().inMenu then return end
     if isDown then
         local newState = not GameOptions.GetBool("Vehicle", "UseDifferential")
@@ -158,8 +165,7 @@ registerInput("ITC_ToggleDifferential", "Toggle Differential Lock (Drift/Grip)",
 end)
 
 registerInput("ITC_ToggleHandbrake", "Toggle Handbrake (Parking Brake)", function(isDown)
-    if not state.vehicle.isMounted then return end
-    if state.isModDisabled then return end
+    if not inputAllowed() then return end
     if Engine and Engine.GetState().inMenu then return end
     if isDown then
         state.inputs.handbrakeToggled = not state.inputs.handbrakeToggled
@@ -168,15 +174,13 @@ registerInput("ITC_ToggleHandbrake", "Toggle Handbrake (Parking Brake)", functio
 end)
 
 registerInput("ITC_Clutch", "Manual Clutch (Hold)", function(isDown)
-    if not state.vehicle.isMounted then return end
-    if state.isModDisabled then return end
+    if not inputAllowed() then return end
     if Engine and Engine.GetState().inMenu then return end
     clutch.setClutch(isDown)
 end)
 
 registerInput("ITC_FootBrake", "Foot Brake (Hold)", function(isDown)
-    if not state.vehicle.isMounted then return end
-    if state.isModDisabled then return end
+    if not inputAllowed() then return end
     if Engine and Engine.GetState().inMenu then return end
     state.inputs.footBrake = isDown
     state.inputs.decelerate = isDown
@@ -185,15 +189,13 @@ registerInput("ITC_FootBrake", "Foot Brake (Hold)", function(isDown)
 end)
 
 registerInput("ITC_Boost", "Full Throttle / Boost Modifier", function(isDown)
-    if not state.vehicle.isMounted then return end
-    if state.isModDisabled then return end
+    if not inputAllowed() then return end
     if Engine and Engine.GetState().inMenu then return end
     state.inputs.fullThrottle = isDown
 end)
 
 registerInput("ITC_ToggleEngine", "Toggle Engine On/Off", function(isDown)
-    if not state.vehicle.isMounted then return end
-    if state.isModDisabled then return end
+    if not inputAllowed() then return end
     if Engine and Engine.GetState().inMenu then return end
     if isDown then
         if state.engine.isStalled then
@@ -223,9 +225,7 @@ registerForEvent("onInit", function()
                 pcall(function()
                     hudInterface.setHUDFact("itc_hud_visible", 1)
                     local uiSys = Game.GetUISystem()
-                    if uiSys and uiSys.itcHUD then
-                        uiSys.itcHUD:Refresh()
-                    end
+                    if uiSys then hudInterface.refreshHUD(uiSys) end
                 end)
             end
         end)
@@ -382,14 +382,8 @@ registerForEvent("onInit", function()
 
     if Engine then
         Engine.OnFrame(5, function(frame)
-            if not state.vehicle.isMounted or state.isModDisabled or (Engine and Engine.GetState().inMenu) then return end
-            local dt = FIXED_DT
-            local err
-            pcall(function() clutch.updateClutch(dt) end)
-            pcall(function() gearbox.updateGearbox(dt) end)
-            pcall(function() drivetrain.applyDrivetrainForces(dt) end)
-            pcall(function() speedLimiter.calculateLimiterForce(dt) end)
-            pcall(function() hudInterface.updateHUDState(dt) end)
+            if not inputAllowed() or state.isModDisabled or (Engine and Engine.GetState().inMenu) then return end
+            runUpdateLoop(FIXED_DT)
         end)
     end
 
@@ -401,15 +395,10 @@ end)
 local updateTimer = 0.0
 registerForEvent("onUpdate", function(dt)
     if not Engine then
-        if not state.vehicle.isMounted or state.isModDisabled then return end
+        if not inputAllowed() then return end
         updateTimer = updateTimer + dt
         if updateTimer >= FIXED_DT then
-            local dt = updateTimer
-            pcall(function() clutch.updateClutch(dt) end)
-            pcall(function() gearbox.updateGearbox(dt) end)
-            pcall(function() drivetrain.applyDrivetrainForces(dt) end)
-            pcall(function() speedLimiter.calculateLimiterForce(dt) end)
-            pcall(function() hudInterface.updateHUDState(dt) end)
+            runUpdateLoop(updateTimer)
             updateTimer = 0.0
         end
     end

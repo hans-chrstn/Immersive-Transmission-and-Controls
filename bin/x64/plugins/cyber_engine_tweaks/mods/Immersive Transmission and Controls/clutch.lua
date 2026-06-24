@@ -21,13 +21,24 @@ local stallLogTimer = 0.0
 
 local function getReleaseDuration()
     local throttle = state.inputs.accelerateVal or 0.0
-    if throttle > RELEASE_FAST_THROTTLE then
-        return RELEASE_FAST
-    elseif throttle > RELEASE_MID_THROTTLE then
-        return RELEASE_MID
-    else
-        return RELEASE_SLOW
+    local baseDuration = RELEASE_MID
+    if throttle > RELEASE_FAST_THROTTLE then baseDuration = RELEASE_FAST
+    elseif throttle < RELEASE_MID_THROTTLE then baseDuration = RELEASE_SLOW end
+
+    local maxRPM = rpm.getMax() or 8000
+    local ok, currentRPM = pcall(rpm.get, 0.016)
+    local okWheel, wheelRPM = pcall(rpm.computeWheelRPM)
+    local safeCurrentRPM = ok and currentRPM or 0
+    local safeWheelRPM = okWheel and wheelRPM or 0
+    local diffPercent = math.abs(safeCurrentRPM - safeWheelRPM) / math.max(1, maxRPM)
+
+    if diffPercent > 0.30 then
+        baseDuration = baseDuration * 1.5
+    elseif diffPercent < 0.10 then
+        baseDuration = baseDuration * 0.5
     end
+
+    return baseDuration
 end
 
 local function updateClutch(dt)

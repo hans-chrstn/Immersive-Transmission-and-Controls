@@ -1,6 +1,13 @@
 local state = require("state")
 local logger = require("logger")
 
+local ACCEL_ACTIONS = {
+    vehicleAccelerate = true, vehicleAccelerate2 = true, Acceleration_Axis = true
+}
+local DECEL_ACTIONS = {
+    vehicleDecelrate = true, vehicleDecelerate = true, vehicleDecelerate2 = true, Deceleration_Axis = true
+}
+
 local function registerInputHandlers(Engine)
     Observe("PlayerPuppet", "OnAction", function(self, action, stateContext)
 
@@ -38,7 +45,7 @@ local function registerInputHandlers(Engine)
                 isReleased = true
             end
         end
-        if actionName == "vehicleAccelerate" or actionName == "vehicleAccelerate2" or actionName == "Acceleration_Axis" then
+        if ACCEL_ACTIONS[actionName] then
             if isPressed then
                 state.inputs.accelerate = true
                 state.inputs.accelerateVal = 1.0
@@ -49,7 +56,7 @@ local function registerInputHandlers(Engine)
                 state.inputs.accelerate = (actionVal > 0.05)
                 state.inputs.accelerateVal = actionVal
             end
-        elseif actionName == "vehicleDecelrate" or actionName == "vehicleDecelerate" or actionName == "vehicleDecelerate2" or actionName == "Deceleration_Axis" then
+        elseif DECEL_ACTIONS[actionName] then
             if isPressed then
                 state.inputs.decelerate = true
                 state.inputs.decelerateVal = 1.0

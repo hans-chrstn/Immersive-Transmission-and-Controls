@@ -398,6 +398,15 @@ public class ITC_HUD extends IScriptable {
 @addField(UISystem)
 public let itcHUD: ref<ITC_HUD>;
 
+@addMethod(UISystem)
+public func ResurrectITCHUD() -> Void {
+  if !IsDefined(this.itcHUD) {
+    this.itcHUD = new ITC_HUD();
+  }
+  this.itcHUD.Ensure();
+  this.itcHUD.Refresh();
+}
+
 @wrapMethod(UISystem)
 public final func PushGameContext(context: UIGameContext) -> Void {
   wrappedMethod(context);

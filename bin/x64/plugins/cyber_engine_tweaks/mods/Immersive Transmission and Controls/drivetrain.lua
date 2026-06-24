@@ -1,4 +1,5 @@
 local state = require("state")
+local gearbox = require("gearbox")
 
 local function applyDrivetrainForces(dt)
     local vehicle = state.vehicle.active
@@ -15,14 +16,10 @@ local function applyDrivetrainForces(dt)
     local forwardSpeed = velocity.x * forwardVec.x + velocity.y * forwardVec.y + velocity.z * forwardVec.z
 
     if state.gearbox.current == "R" then
-        if forwardSpeed > 0.1 and not state.clutch.isPressed then
-            vehicle:ForceBrakesFor(dt)
-        end
         return
     end
 
-    if forwardSpeed < -0.1 and not state.clutch.isPressed then
-        vehicle:ForceBrakesFor(dt)
+    if forwardSpeed < -0.1 then
         return
     end
 
@@ -36,9 +33,8 @@ local function applyDrivetrainForces(dt)
         releaseBlock = true
     end
 
-    if releaseBlock and state.gearbox.blockChange then
-        GameOptions.SetBool("Vehicle", "BlockChangeGear", false)
-        state.gearbox.blockChange = false
+    if releaseBlock then
+        gearbox.setGearBlock(false)
     end
 end
 
