@@ -9,13 +9,17 @@ local function setHUDFact(name, value)
     end)
 end
 
+local HUD_THROTTLE_SECS = 0.25
+local ZONE_LOG_INTERVAL = 1.0
+local INITIAL_FORCE_DELAY = 1.0
+local FALLBACK_MAX_RPM = 8000.0
+
 local hudRefreshTimer = 0.0
 local zoneLogTimer = 0.0
-local HUD_THROTTLE_SECS = 0.25
 
 
 if state.lastSentHUD.visible == -1 then
-    hudRefreshTimer = HUD_THROTTLE_SECS + 1.0
+    hudRefreshTimer = HUD_THROTTLE_SECS + INITIAL_FORCE_DELAY
 end
 
 local function updateHUDState(dt)
@@ -91,7 +95,7 @@ local function updateHUDState(dt)
     if state.vehicle.bb then
         rawRPM = math.floor(state.vehicle.bb:GetFloat(GetAllBlackboardDefs().Vehicle.RPMValue))
         local maxRPM = state.vehicle.bb:GetFloat(GetAllBlackboardDefs().Vehicle.RPMMax)
-        if not maxRPM or maxRPM <= 0 then maxRPM = 8000.0 end
+        if not maxRPM or maxRPM <= 0 then maxRPM = FALLBACK_MAX_RPM end
         rpmPercent = math.floor((rawRPM / maxRPM) * 100)
     end
     if state.vehicle.active then
@@ -100,7 +104,8 @@ local function updateHUDState(dt)
             local mps = math.sqrt((vel.x or 0)^2 + (vel.y or 0)^2 + (vel.z or 0)^2)
             speedVal = math.floor(mps * 3.6 + 0.5)
         else
-            speedVal = math.floor(state.vehicle.active:GetCurrentSpeed() * 3.6)
+            local ok, spd = pcall(function() return state.vehicle.active:GetCurrentSpeed() end)
+            speedVal = ok and math.floor((spd or 0) * 3.6) or 0
         end
         local gearIdx = nil
         if settings.transmissionMode == "Manual" then
@@ -126,8 +131,8 @@ local function updateHUDState(dt)
                 else
                     rpmZone = 0
                 end
-                zoneLogTimer = zoneLogTimer + 0.25
-                if zoneLogTimer >= 1.0 then
+                zoneLogTimer = zoneLogTimer + HUD_THROTTLE_SECS
+                if zoneLogTimer >= ZONE_LOG_INTERVAL then
                     zoneLogTimer = 0.0
                     logger.logDebug(string.format("[HUD] zone=%d gear=%d speed=%.1f min=%.1f normal=%.1f redline=%.1f", rpmZone, gearIdx, s * 3.6, minSpd * 3.6, normalMax * 3.6, redlineMin * 3.6))
                 end
@@ -200,6 +205,7 @@ local function updateHUDState(dt)
 end
 
 local function forceHideHUD()
+    hudRefreshTimer = 0.0
     setHUDFact("itc_hud_visible", 0)
     setHUDFact("itc_hud_mounted", 0)
     setHUDFact("itc_hud_mode", 0)

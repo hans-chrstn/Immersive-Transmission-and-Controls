@@ -2,6 +2,8 @@ local state = require("state")
 local settings = require("settings")
 local logger = require("logger")
 
+local LIMITER_THRESHOLD = 0.98
+
 local function getGearIdx()
     if settings.transmissionMode == "Manual" then
         if state.gearbox.current == "R" then
@@ -38,7 +40,7 @@ local function calculateLimiterForce(dt)
     local maxSpeed = selectedGear.maxSpeed
     local currentSpeed = vehicle:GetCurrentSpeed()
 
-    if currentSpeed >= maxSpeed * 0.98 then
+    if currentSpeed >= maxSpeed * LIMITER_THRESHOLD then
         vehicle:ForceBrakesFor(dt)
         logger.logDebug(string.format(
             "[LIMITER] gear=%d speed=%.1f max=%.1f BRAKING",

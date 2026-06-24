@@ -17,6 +17,19 @@ local function setGearBlock(block)
     end
 end
 
+local function triggerShift(direction)
+    if not state.vehicle.active or state.gearbox.isShifting then
+        return
+    end
+    state.gearbox.isShifting = true
+    state.gearbox.shiftTimer = 0.3
+    setGearBlock(false)
+    if settings.transmissionMode == "Manual" or state.manualOverride.active then
+        state.clutch.transitionTimer = 0.2
+    end
+    pcall(function() GameObject.PlaySoundEvent(GetPlayer(), 'sq023_sc_10_press_button') end)
+end
+
 local function handleGearUp()
     local activeVehicle = state.vehicle.active
     local bb = state.vehicle.bb
@@ -56,8 +69,8 @@ local function handleGearUp()
             if maxGears == 0 then maxGears = 5 end
 
 
-            if currentSpeed < 0.1 and currentGearVal > 1 then
-                logger.logDebug("Shift UP Blocked: Cannot upshift from stop (gear > 1)")
+            if currentSpeed < 0.1 then
+                logger.logDebug("Shift UP Blocked: Cannot upshift from stop")
                 pcall(function() GameObject.PlaySoundEvent(GetPlayer(), 'ui_menu_error') end)
                 return
             end
@@ -170,19 +183,6 @@ local function handleGearDown()
     local player = Game.GetPlayer()
     sendSEF(player, {"ITC_GearShift", state.gearbox.current})
     hudInterface.updateHUDState(1.0)
-end
-
-local function triggerShift(direction)
-    if not state.vehicle.active or state.gearbox.isShifting then
-        return
-    end
-    state.gearbox.isShifting = true
-    state.gearbox.shiftTimer = 0.3
-    setGearBlock(false)
-    if settings.transmissionMode == "Manual" or state.manualOverride.active then
-        state.clutch.transitionTimer = 0.2
-    end
-    pcall(function() GameObject.PlaySoundEvent(GetPlayer(), 'sq023_sc_10_press_button') end)
 end
 
 local function updateGearbox(dt)
